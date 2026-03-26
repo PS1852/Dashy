@@ -9,16 +9,17 @@ export default function Dashboard() {
     user, pages, projects, pageProjectMap, createPage, createProject, setActivePageId 
   } = useApp();
 
-  const totalPages = pages.length;
+  const activePages = pages.filter(p => !p.is_deleted);
+  const totalPages = activePages.length;
   const totalProjects = projects.length;
-  const favoritePages = pages.filter(p => p.is_favorite).length;
+  const favoritePages = activePages.filter(p => p.is_favorite).length;
   
-  const recentPages = [...pages]
+  const recentPages = [...activePages]
     .sort((a, b) => new Date(b.$updatedAt).getTime() - new Date(a.$updatedAt).getTime())
     .slice(0, 5);
 
   const getPagesInProject = (projectId: string) => {
-    return pages.filter(p => pageProjectMap[p.$id] === projectId).length;
+    return activePages.filter(p => pageProjectMap[p.$id] === projectId).length;
   };
 
   return (
