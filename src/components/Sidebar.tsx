@@ -1,11 +1,16 @@
-import { Home, Search, Clock, Grid, Settings, Plus, ChevronRight, LogOut } from 'lucide-react';
+import { Home, Search, Clock, Grid, Settings, Plus, LogOut, FileText } from 'lucide-react';
 import { account } from '../lib/appwrite';
+import { DashyPage } from '../types';
 
 interface SidebarProps {
   user: any;
+  pages: DashyPage[];
+  activePageId: string | null;
+  onSelectPage: (id: string) => void;
+  onCreatePage: () => void;
 }
 
-export default function Sidebar({ user }: SidebarProps) {
+export default function Sidebar({ user, pages, activePageId, onSelectPage, onCreatePage }: SidebarProps) {
   const handleLogout = async () => {
     await account.deleteSession('current');
     window.location.reload();
@@ -51,15 +56,19 @@ export default function Sidebar({ user }: SidebarProps) {
         <div className="nav-section flex-grow">
           <div className="section-title flex justify-between items-center">
             <span>Pages</span>
-            <Plus size={14} className="cursor-pointer" />
+            <Plus size={14} className="cursor-pointer hover:bg-slate-200 rounded" onClick={onCreatePage} />
           </div>
-          <div className="nav-item">
-            <ChevronRight size={14} />
-            <span>Project Roadmap</span>
-          </div>
-          <div className="nav-item">
-            <ChevronRight size={14} />
-            <span>Meeting Notes</span>
+          <div className="pages-list">
+            {pages.map((page) => (
+              <div 
+                key={page.$id} 
+                className={`nav-item ${activePageId === page.$id ? 'active' : ''}`}
+                onClick={() => onSelectPage(page.$id)}
+              >
+                <FileText size={14} />
+                <span className="truncate">{page.title || 'Untitled'}</span>
+              </div>
+            ))}
           </div>
         </div>
       </nav>
