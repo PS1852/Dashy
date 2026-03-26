@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SubMapify Dashboard — B2B Pipeline Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+
+:root{
+  --bg:#080a12;
+  --bg2:#0d0f1c;
+  --surface:#111425;
+  --surface2:#161a2e;
+  --surface3:#1c2138;
+  --border:#1e2440;
+  --border2:#252d4a;
+  --border3:#2e3860;
+  --accent:#22d3ee;
+  --accent-dim:rgba(34,211,238,0.12);
+  --accent-glow:rgba(34,211,238,0.25);
+  --text:#e8eaf6;
+  --text-muted:#8891b8;
+  --text-dim:#4d5680;
+  --danger:#f87171;
+  --danger-bg:rgba(248,113,113,0.12);
+  --danger-border:rgba(248,113,113,0.25);
+  --success:#34d399;
+  --success-bg:rgba(52,211,153,0.12);
+  --warning:#fbbf24;
+  --warning-bg:rgba(251,191,36,0.12);
+  --hot:#fb923c;
+  --hot-bg:rgba(251,146,60,0.12);
+}
+
+html,body{height:100%;background:var(--bg);}
+
+body{
+  font-family:'DM Sans',sans-serif;
+  color:var(--text);
+  line-height:1.5;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg2);}
+::-webkit-scrollbar-thumb{background:var(--border3);border-radius:6px;}
+::-webkit-scrollbar-thumb:hover{background:var(--text-dim);}
+
+input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(0.6) sepia(1) hue-rotate(180deg) saturate(0.8);cursor:pointer;opacity:0.7;}
+input[type="date"]::-webkit-calendar-picker-indicator:hover{opacity:1;}
+
+select option{background:var(--surface2);color:var(--text);}
+
+/* ── Layout ── */
+.app{display:flex;flex-direction:column;min-height:100vh;padding-bottom:56px;}
+
+/* ── Header ── */
+.hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 32px;height:60px;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:200;
+  backdrop-filter:blur(12px);
+}
+.hdr-brand{display:flex;align-items:center;gap:12px;}
+.hdr-logo{
+  width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,var(--accent),#818cf8);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Bricolage Grotesque',sans-serif;font-weight:800;font-size:14px;color:#000;
+  box-shadow:0 0 20px var(--accent-glow);
+}
+.hdr-name{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px;letter-spacing:-0.3px;}
+.hdr-tagline{font-size:11px;color:var(--text-dim);letter-spacing:0.3px;text-transform:uppercase;}
+
+/* ── Tabs ── */
+.tabs{
+  display:flex;padding:0 32px;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  overflow-x:auto;gap:2px;
+}
+.tabs::-webkit-scrollbar{height:0;}
+.tab{
+  padding:14px 18px;font-size:13px;font-weight:500;
+  color:var(--text-muted);background:transparent;border:none;cursor:pointer;
+  border-bottom:2px solid transparent;white-space:nowrap;
+  transition:all .15s;font-family:'DM Sans',sans-serif;
+  display:flex;align-items:center;gap:7px;
+}
+.tab:hover{color:var(--text);background:rgba(255,255,255,0.03);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-pip{
+  background:var(--danger);color:#fff;border-radius:9px;
+  padding:1px 6px;font-size:10px;font-weight:700;letter-spacing:0.2px;
+}
+
+/* ── Content ── */
+.content{flex:1;padding:28px 32px;}
+
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 16px;border-radius:9px;font-size:13px;font-weight:500;
+  cursor:pointer;border:none;transition:all .15s;font-family:'DM Sans',sans-serif;
+  letter-spacing:0.1px;
+}
+.btn-primary{background:var(--accent);color:#000;font-weight:600;}
+.btn-primary:hover{background:#38e8ff;box-shadow:0 0 24px var(--accent-glow);}
+.btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border2);}
+.btn-ghost:hover{background:var(--surface2);color:var(--text);border-color:var(--border3);}
+.btn-danger{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border);}
+.btn-danger:hover{background:rgba(248,113,113,0.2);}
+.btn-sm{padding:5px 11px;font-size:12px;border-radius:7px;}
+
+/* ── Badges ── */
+.badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:0.2px;
+  white-space:nowrap;
+}
+.badge-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+
+/* ── Cards ── */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;}
+
+.lead-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:13px;padding:16px;cursor:pointer;
+  transition:all .18s ease;position:relative;overflow:hidden;
+}
+.lead-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:transparent;transition:background .18s;
+}
+.lead-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,0.3),0 0 0 1px var(--accent);}
+.lead-card:hover::before{background:var(--accent);}
+
+.lc-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:8px;}
+.lc-company{font-weight:600;font-size:14px;color:var(--text);margin-bottom:2px;line-height:1.3;}
+.lc-contact{font-size:12px;color:var(--text-muted);}
+.lc-badges{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;}
+.lc-foot{
+  display:flex;justify-content:space-between;align-items:center;
+  padding-top:10px;border-top:1px solid var(--border);
+  font-size:12px;
+}
+.lc-value{font-weight:600;color:var(--accent);font-size:12px;}
+
+/* ── Follow-up date ── */
+.fu-date{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text-dim);}
+.fu-date.overdue{color:var(--danger);font-weight:600;}
+.fu-date.duetoday{color:var(--warning);font-weight:600;}
+
+/* ── Section title ── */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.sec-title{font-family:'Bricolage Grotesque',sans-serif;font-size:17px;font-weight:700;letter-spacing:-0.2px;}
+.sec-sub{font-size:13px;color:var(--text-dim);margin-left:8px;font-weight:400;}
+
+/* ── Pipeline ── */
+.pipeline{display:flex;gap:14px;overflow-x:auto;padding-bottom:10px;align-items:flex-start;}
+.pipeline::-webkit-scrollbar{height:5px;}
+
+.pcol{
+  flex:0 0 255px;background:var(--surface);
+  border:1px solid var(--border);border-radius:13px;overflow:hidden;
+}
+.pcol-hdr{padding:13px 15px;border-bottom:1px solid var(--border);}
+.pcol-name{font-weight:600;font-size:13px;margin-bottom:4px;}
+.pcol-meta{font-size:11px;color:var(--text-dim);display:flex;gap:6px;}
+.pcol-body{padding:10px;display:flex;flex-direction:column;gap:8px;min-height:80px;}
+
+.pcard{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;padding:12px;cursor:pointer;transition:all .15s;
+}
+.pcard:hover{border-color:var(--border3);background:var(--surface3);box-shadow:0 4px 16px rgba(0,0,0,0.2);}
+.pcard-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:6px;}
+.pcard-co{font-weight:600;font-size:12px;color:var(--text);}
+.pcard-ct{font-size:11px;color:var(--text-muted);margin-top:1px;}
+.pcard-val{font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-dim);padding:2px 6px;border-radius:6px;white-space:nowrap;}
+.pcard-badges{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:7px;}
+
+/* ── Follow-ups section ── */
+.fu-section-lbl{
+  font-family:'Bricolage Grotesque',sans-serif;font-size:12px;font-weight:700;
+  text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px;
+  display:flex;align-items:center;gap:8px;
+}
+.fu-count-badge{border-radius:8px;padding:1px 7px;font-size:10px;font-weight:700;}
+
+/* ── KPI grid ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:14px;margin-bottom:24px;}
+.kpi-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:13px;padding:18px 20px;
+}
+.kpi-label{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;}
+.kpi-value{font-family:'Bricolage Grotesque',sans-serif;font-size:28px;font-weight:800;color:var(--text);line-height:1;letter-spacing:-0.5px;}
+.kpi-sub{font-size:11px;color:var(--text-muted);margin-top:5px;}
+
+/* ── Charts ── */
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.chart-panel{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:22px;}
+.chart-title{font-family:'Bricolage Grotesque',sans-serif;font-size:14px;font-weight:700;margin-bottom:18px;color:var(--text);}
+
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.bar-lbl{font-size:11px;color:var(--text-muted);width:138px;flex-shrink:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar-track{flex:1;height:20px;background:var(--surface2);border-radius:5px;overflow:hidden;border:1px solid var(--border);}
+.bar-fill{height:100%;border-radius:4px;transition:width .4s ease;}
+.bar-n{font-size:11px;color:var(--text-dim);width:20px;text-align:right;font-weight:600;}
+
+.donut-wrap{display:flex;align-items:center;gap:24px;}
+.donut-legend{display:flex;flex-direction:column;gap:9px;}
+.dl-item{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);}
+.dl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+
+/* ── Table ── */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:13px;overflow:hidden;}
+table{width:100%;border-collapse:collapse;}
+thead th{
+  padding:11px 14px;text-align:left;font-size:10px;font-weight:700;
+  color:var(--text-dim);text-transform:uppercase;letter-spacing:0.7px;
+  background:var(--surface2);border-bottom:1px solid var(--border);
+  cursor:pointer;user-select:none;white-space:nowrap;
+}
+thead th:hover{color:var(--text-muted);}
+tbody tr{border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:var(--surface2);}
+tbody td{padding:11px 14px;font-size:13px;color:var(--text);}
+
+/* ── Filters ── */
+.filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;align-items:center;}
+.input,.fsel{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:9px;color:var(--text);padding:8px 12px;
+  font-size:13px;font-family:'DM Sans',sans-serif;outline:none;
+  transition:border-color .15s;
+}
+.input{min-width:220px;}
+.input::placeholder{color:var(--text-dim);}
+.input:focus,.fsel:focus{border-color:var(--accent);}
+
+/* ── Closed summary ── */
+.summary-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-bottom:22px;}
+.sum-card{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:20px;}
+
+/* ── Modal ── */
+.overlay{
+  position:fixed;inset:0;background:rgba(4,5,14,0.8);
+  display:flex;align-items:center;justify-content:center;
+  z-index:1000;padding:20px;backdrop-filter:blur(6px);
+}
+.modal{
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:16px;width:100%;max-width:650px;
+  max-height:90vh;overflow-y:auto;
+  box-shadow:0 32px 80px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.04);
+}
+.modal-hdr{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 24px;border-bottom:1px solid var(--border);
+  position:sticky;top:0;background:var(--surface);z-index:1;
+}
+.modal-title{font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:700;}
+.modal-x{
+  width:30px;height:30px;border-radius:8px;background:var(--surface2);
+  border:1px solid var(--border);color:var(--text-muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:14px;
+  transition:all .15s;
+}
+.modal-x:hover{background:var(--danger-bg);color:var(--danger);border-color:var(--danger-border);}
+.modal-body{padding:24px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;}
+.f-full{grid-column:1/-1;}
+.fg{display:flex;flex-direction:column;gap:5px;}
+.flbl{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.6px;}
+.finput,.fsel2,.ftarea{
+  background:var(--surface2);border:1px solid var(--border2);
+  border-radius:8px;color:var(--text);padding:9px 12px;
+  font-size:13px;font-family:'DM Sans',sans-serif;outline:none;
+  transition:border-color .15s;width:100%;
+}
+.finput:focus,.fsel2:focus,.ftarea:focus{border-color:var(--accent);}
+.finput::placeholder{color:var(--text-dim);}
+.ftarea{resize:vertical;min-height:82px;}
+.fcheck-row{
+  display:flex;align-items:center;gap:10px;padding:9px 12px;
+  background:var(--surface2);border:1px solid var(--border2);
+  border-radius:8px;cursor:pointer;
+}
+.fcheck-row input{cursor:pointer;accent-color:var(--accent);width:15px;height:15px;}
+.ferr{font-size:11px;color:var(--danger);margin-top:3px;}
+.modal-ftr{
+  padding:16px 24px;border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;bottom:0;background:var(--surface);
+}
+.modal-ftr-r{display:flex;gap:8px;}
+.del-confirm{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.del-ask{font-size:13px;color:var(--text-muted);}
+
+/* ── Instructions ── */
+.instr{
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--surface);border-top:1px solid var(--border);z-index:300;
+}
+.instr-toggle{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 32px;cursor:pointer;user-select:none;transition:background .15s;
+}
+.instr-toggle:hover{background:var(--surface2);}
+.instr-hd{font-size:12px;font-weight:600;color:var(--text-dim);display:flex;align-items:center;gap:7px;}
+.instr-chev{font-size:10px;color:var(--text-dim);}
+.instr-body{padding:14px 32px 18px;border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.instr-rule{display:flex;gap:11px;align-items:flex-start;}
+.instr-num{
+  width:22px;height:22px;border-radius:50%;
+  background:var(--accent-dim);color:var(--accent);
+  font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.instr-txt{font-size:12px;color:var(--text-muted);line-height:1.55;}
+
+/* ── Empty state ── */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 20px;color:var(--text-dim);text-align:center;gap:12px;}
+.empty-ico{font-size:40px;opacity:0.5;}
+.empty-txt{font-size:14px;max-width:300px;line-height:1.6;}
+
+/* ── Star ── */
+.dm-star{color:var(--warning);margin-right:2px;}
+
+/* ── Divider ── */
+.divider{height:1px;background:var(--border);margin:24px 0;}
+
+@media(max-width:1024px){
+  .content{padding:20px 16px;}
+  .hdr{padding:0 16px;}
+  .tabs{padding:0 16px;}
+  .form-grid{grid-template-columns:1fr;}
+  .chart-row{grid-template-columns:1fr;}
+  .instr-body{grid-template-columns:1fr;}
+  .instr-toggle{padding:9px 16px;}
+  .kpi-grid{grid-template-columns:repeat(3,1fr);}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo } = React;
+
+/* ================================================================
+   CONSTANTS
+================================================================ */
+const STATUSES = ["Not Contacted","Contacted","Meeting Scheduled","Proposal Sent","Negotiation","Closed Won","Closed Lost"];
+const PIPELINE_STATUSES = ["Not Contacted","Contacted","Meeting Scheduled","Proposal Sent","Negotiation"];
+const SOURCES = ["Call","Email","LinkedIn","Referral"];
+const TEMPERATURES = ["Cold","Warm","Hot"];
+const PRIORITIES = ["Low","Medium","High"];
+const MEETING_STATUSES = ["None","Scheduled","Completed"];
+
+const SC = {
+  "Not Contacted": { bg:"rgba(71,85,105,0.2)", text:"#94a3b8", dot:"#64748b" },
+  "Contacted":     { bg:"rgba(59,130,246,0.15)", text:"#93c5fd", dot:"#3b82f6" },
+  "Meeting Scheduled":{ bg:"rgba(168,85,247,0.15)", text:"#d8b4fe", dot:"#a855f7" },
+  "Proposal Sent": { bg:"rgba(251,191,36,0.15)", text:"#fde68a", dot:"#f59e0b" },
+  "Negotiation":   { bg:"rgba(249,115,22,0.15)", text:"#fdba74", dot:"#f97316" },
+  "Closed Won":    { bg:"rgba(52,211,153,0.15)", text:"#6ee7b7", dot:"#34d399" },
+  "Closed Lost":   { bg:"rgba(248,113,113,0.15)", text:"#fca5a5", dot:"#f87171" },
+};
+const TC = {
+  "Cold": { bg:"rgba(71,85,105,0.2)", text:"#94a3b8", dot:"#64748b" },
+  "Warm": { bg:"rgba(251,191,36,0.13)", text:"#fbbf24", dot:"#f59e0b" },
+  "Hot":  { bg:"rgba(251,146,60,0.15)", text:"#fb923c", dot:"#f97316" },
+};
+const PC = {
+  "Low":    { bg:"rgba(71,85,105,0.2)",   text:"#94a3b8" },
+  "Medium": { bg:"rgba(34,211,238,0.12)", text:"#67e8f9" },
+  "High":   { bg:"rgba(248,113,113,0.13)",text:"#fca5a5" },
+};
+const SRC = {
+  "Call":     { bg:"rgba(59,130,246,0.13)",  text:"#93c5fd" },
+  "Email":    { bg:"rgba(168,85,247,0.13)",  text:"#d8b4fe" },
+  "LinkedIn": { bg:"rgba(34,211,238,0.12)",  text:"#67e8f9" },
+  "Referral": { bg:"rgba(52,211,153,0.13)",  text:"#6ee7b7" },
+};
+const CHART_COLORS = ["#22d3ee","#34d399","#a78bfa","#fb923c","#f472b6","#fbbf24","#60a5fa"];
+
+/* ================================================================
+   HELPERS
+================================================================ */
+const todayStr = () => new Date().toISOString().split("T")[0];
+const addDays = (base, n) => {
+  const d = new Date(base + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return d.toISOString().split("T")[0];
+};
+const isOverdue  = s => !!s && s < todayStr();
+const isDueToday = s => !!s && s === todayStr();
+const fmtDate = s => {
+  if (!s) return "—";
+  return new Date(s + "T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+};
+const fmtCur = v => {
+  if (v == null || v === "") return "—";
+  return new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(v);
+};
+
+/* ================================================================
+   SEED DATA
+================================================================ */
+const T = todayStr();
+const SEED = [
+  { id:1,  company:"TechNova Solutions",   contactName:"Marcus Chen",    email:"m.chen@technova.io",       phone:"+1 415-555-0101", linkedIn:"https://linkedin.com/in/marcuschen",    source:"LinkedIn", status:"Not Contacted",    temperature:"Cold", lastContact:addDays(T,-21), nextFollowUp:addDays(T,-5), meetingStatus:"None",      notes:"VP Engineering, 200-person SaaS company. Pain point: legacy CRM, team scaling bottlenecks.", isDecisionMaker:false, dealValue:36000,  priority:"Low"    },
+  { id:2,  company:"Pinnacle Financial",   contactName:"Rachel Torres",  email:"rtorres@pinnfin.com",      phone:"+1 212-555-0202", linkedIn:"https://linkedin.com/in/racheltorres",  source:"Referral", status:"Contacted",        temperature:"Warm", lastContact:addDays(T,-3),  nextFollowUp:T,            meetingStatus:"None",      notes:"CFO, warm referral from DeltaCorp. Pain: manual reporting & compliance overhead. Budget ~$85K.", isDecisionMaker:true,  dealValue:85000,  priority:"High"   },
+  { id:3,  company:"Apex Logistics",       contactName:"David Park",     email:"d.park@apexlog.com",       phone:"+1 312-555-0303", linkedIn:"https://linkedin.com/in/davidpark",     source:"Call",     status:"Meeting Scheduled", temperature:"Hot",  lastContact:addDays(T,-1),  nextFollowUp:addDays(T,2), meetingStatus:"Scheduled", notes:"COO. Wants to replace legacy dispatch system. Very eager — demo booked. Budget pre-approved.", isDecisionMaker:true,  dealValue:120000, priority:"High"   },
+  { id:4,  company:"Meridian Healthcare",  contactName:"Sophia Nguyen",  email:"s.nguyen@meridianhealth.com",phone:"+1 617-555-0404",linkedIn:"https://linkedin.com/in/sophianguyen",  source:"Email",    status:"Proposal Sent",    temperature:"Warm", lastContact:addDays(T,-4),  nextFollowUp:addDays(T,3), meetingStatus:"Completed", notes:"IT Director. Sent enterprise license proposal. Awaiting board approval. Budget confirmed ~$60K.", isDecisionMaker:false, dealValue:60000,  priority:"High"   },
+  { id:5,  company:"Starforge Gaming",     contactName:"Leo Vasquez",    email:"leo@starforge.gg",         phone:"+1 310-555-0505", linkedIn:"https://linkedin.com/in/leovasquez",    source:"LinkedIn", status:"Negotiation",       temperature:"Hot",  lastContact:T,              nextFollowUp:addDays(T,1), meetingStatus:"Completed", notes:"CEO. Negotiating final pricing — wants 20% off annual. Countered: 10% + free onboarding.", isDecisionMaker:true,  dealValue:95000,  priority:"High"   },
+  { id:6,  company:"BlueRidge Manufacturing",contactName:"Karen Mills",  email:"kmills@blueridge.com",     phone:"+1 704-555-0606", linkedIn:"https://linkedin.com/in/karenmills",    source:"Call",     status:"Closed Won",       temperature:"Hot",  lastContact:addDays(T,-7),  nextFollowUp:null,         meetingStatus:"Completed", notes:"VP Operations. Signed 2-year enterprise contract. Onboarding scheduled next month.", isDecisionMaker:true,  dealValue:150000, priority:"High"   },
+  { id:7,  company:"Cobalt Analytics",     contactName:"James Wright",   email:"j.wright@cobaltanalytics.com",phone:"+1 206-555-0707",linkedIn:"https://linkedin.com/in/jameswright", source:"Email",    status:"Closed Lost",      temperature:"Cold", lastContact:addDays(T,-14), nextFollowUp:null,         meetingStatus:"Completed", notes:"Head of Data. Lost to competitor on pricing. Revisit Q4 when budget cycle resets.", isDecisionMaker:false, dealValue:42000,  priority:"Medium" },
+  { id:8,  company:"Vertex Consulting",    contactName:"Amara Okafor",   email:"aokafor@vertexco.com",     phone:"+1 646-555-0808", linkedIn:"https://linkedin.com/in/amaraokafor",   source:"Referral", status:"Contacted",        temperature:"Warm", lastContact:addDays(T,-6),  nextFollowUp:addDays(T,-2),meetingStatus:"None",      notes:"Engagement Manager. Interested in team productivity features. Needs internal budget sign-off.", isDecisionMaker:false, dealValue:28000,  priority:"Medium" },
+  { id:9,  company:"Zenith Retail Group",  contactName:"Tyler Brooks",   email:"tbrooks@zenithretail.com", phone:"+1 503-555-0909", linkedIn:"https://linkedin.com/in/tylerbrooks",   source:"Email",    status:"Not Contacted",    temperature:"Cold", lastContact:null,           nextFollowUp:addDays(T,5), meetingStatus:"None",      notes:"Director of Digital Commerce. Strong ICP match for e-commerce automation.", isDecisionMaker:false, dealValue:null,   priority:"Low"    },
+  { id:10, company:"Luminary Capital",     contactName:"Priya Sharma",   email:"p.sharma@luminarycap.com", phone:"+1 212-555-1010", linkedIn:"https://linkedin.com/in/priyasharma",   source:"LinkedIn", status:"Meeting Scheduled", temperature:"Hot",  lastContact:addDays(T,-2),  nextFollowUp:T,            meetingStatus:"Scheduled", notes:"Managing Partner. Portfolio mgmt automation — intro call today. High urgency, high value.", isDecisionMaker:true,  dealValue:200000, priority:"High"   },
+  { id:11, company:"Cascade Biotech",      contactName:"Ethan Cole",     email:"e.cole@cascadebio.com",    phone:"+1 858-555-1111", linkedIn:"https://linkedin.com/in/ethancole",     source:"Call",     status:"Proposal Sent",    temperature:"Warm", lastContact:addDays(T,-8),  nextFollowUp:addDays(T,-1),meetingStatus:"Completed", notes:"R&D Director. Sent custom proposal for lab management module. Delayed — follow up urgently.", isDecisionMaker:false, dealValue:55000,  priority:"Medium" },
+  { id:12, company:"NorthStar EdTech",     contactName:"Olivia Grant",   email:"ogrant@northstaredu.com",  phone:"+1 617-555-1212", linkedIn:"https://linkedin.com/in/oliviagrant",   source:"Referral", status:"Negotiation",       temperature:"Hot",  lastContact:addDays(T,-1),  nextFollowUp:addDays(T,2), meetingStatus:"Completed", notes:"CEO. Negotiating SLA terms and data residency. Strong intent to close this quarter.", isDecisionMaker:true,  dealValue:78000,  priority:"High"   },
+];
+
+/* ================================================================
+   SMALL UI ATOMS
+================================================================ */
+function Badge({ label, s, dot }) {
+  return (
+    <span className="badge" style={{ background: s.bg, color: s.text }}>
+      {dot && <span className="badge-dot" style={{ background: s.dot || s.text }} />}
+      {label}
+    </span>
+  );
+}
+
+function FuDate({ d }) {
+  if (!d) return <span className="fu-date">No date set</span>;
+  const ov = isOverdue(d), dt = isDueToday(d);
+  return (
+    <span className={`fu-date${ov?" overdue":dt?" duetoday":""}`}>
+      {ov && "⚠ "}{dt && "● "}{fmtDate(d)}
+    </span>
+  );
+}
+
+function Empty({ icon, msg }) {
+  return (
+    <div className="empty">
+      <div className="empty-ico">{icon}</div>
+      <div className="empty-txt">{msg}</div>
+    </div>
+  );
+}
+
+/* ================================================================
+   HEADER
+================================================================ */
+function Header({ onNew }) {
+  return (
+    <header className="hdr">
+      <div className="hdr-brand">
+        <div className="hdr-logo">SM</div>
+        <div>
+          <div className="hdr-name">SubMapify</div>
+          <div className="hdr-tagline">B2B Pipeline Dashboard</div>
+        </div>
+      </div>
+      <button className="btn btn-primary" onClick={onNew}>
+        <span style={{fontSize:16,lineHeight:1,marginRight:1}}>+</span> New Lead
+      </button>
+    </header>
+  );
+}
+
+/* ================================================================
+   TAB NAV
+================================================================ */
+function TabNav({ labels, active, setActive }) {
+  return (
+    <nav className="tabs">
+      {labels.map((lbl, i) => {
+        const m = lbl.match(/^(.*?)\s*\((\d+)\)$/);
+        const name = m ? m[1] : lbl;
+        const cnt  = m ? m[2] : null;
+        return (
+          <button key={i} className={`tab${active===i?" active":""}`} onClick={() => setActive(i)}>
+            {name}{cnt && <span className="tab-pip">{cnt}</span>}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+/* ================================================================
+   LEAD CARD (shared)
+================================================================ */
+function LeadCard({ lead, onEdit }) {
+  return (
+    <div className="lead-card" onClick={() => onEdit(lead)}>
+      <div className="lc-head">
+        <div>
+          <div className="lc-company">
+            {lead.isDecisionMaker && <span className="dm-star" title="Decision Maker">★</span>}
+            {lead.company}
+          </div>
+          <div className="lc-contact">{lead.contactName}</div>
+        </div>
+        <Badge label={lead.status} s={SC[lead.status]} dot />
+      </div>
+      <div className="lc-badges">
+        <Badge label={lead.temperature} s={TC[lead.temperature]} dot />
+        <Badge label={lead.priority}    s={PC[lead.priority]} />
+        <Badge label={lead.source}      s={SRC[lead.source]} />
+      </div>
+      <div className="lc-foot">
+        <FuDate d={lead.nextFollowUp} />
+        {lead.dealValue != null && <span className="lc-value">{fmtCur(lead.dealValue)}</span>}
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
+   PIPELINE (KANBAN)
+================================================================ */
+function PipelineView({ leads, onEdit }) {
+  const cols = PIPELINE_STATUSES.map(s => {
+    const cards = leads.filter(l => l.status === s);
+    return { s, cards, val: cards.reduce((acc, l) => acc + (l.dealValue||0), 0) };
+  });
+  const activeCount = leads.filter(l => !l.status.startsWith("Closed")).length;
+  return (
+    <div>
+      <div className="sec-hdr">
+        <div className="sec-title">Pipeline <span className="sec-sub">{activeCount} active lead{activeCount!==1?"s":""}</span></div>
+      </div>
+      <div className="pipeline">
+        {cols.map(({ s, cards, val }) => (
+          <div className="pcol" key={s} style={{ borderTop:`2px solid ${SC[s].dot}` }}>
+            <div className="pcol-hdr">
+              <div className="pcol-name" style={{ color: SC[s].text }}>{s}</div>
+              <div className="pcol-meta">
+                <span>{cards.length} lead{cards.length!==1?"s":""}</span>
+                {val > 0 && <span>· {fmtCur(val)}</span>}
+              </div>
+            </div>
+            <div className="pcol-body">
+              {cards.length === 0 && (
+                <div style={{fontSize:11,color:"var(--text-dim)",textAlign:"center",padding:"18px 0"}}>Empty</div>
+              )}
+              {cards.map(l => (
+                <div className="pcard" key={l.id} onClick={() => onEdit(l)}>
+                  <div className="pcard-top">
+                    <div>
+                      <div className="pcard-co">
+                        {l.isDecisionMaker && <span className="dm-star" title="Decision Maker">★</span>}
+                        {l.company}
+                      </div>
+                      <div className="pcard-ct">{l.contactName}</div>
+                    </div>
+                    {l.dealValue != null && <span className="pcard-val">{fmtCur(l.dealValue)}</span>}
+                  </div>
+                  <div className="pcard-badges">
+                    <Badge label={l.temperature} s={TC[l.temperature]} dot />
+                    <Badge label={l.priority}    s={PC[l.priority]} />
+                    <Badge label={l.source}      s={SRC[l.source]} />
+                  </div>
+                  <FuDate d={l.nextFollowUp} />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
+   FOLLOW-UPS
+================================================================ */
+function FollowUpsView({ leads, onEdit }) {
+  const t = todayStr();
+  const active   = leads.filter(l => l.status !== "Closed Won" && l.status !== "Closed Lost");
+  const overdue  = active.filter(l => l.nextFollowUp && l.nextFollowUp < t).sort((a,b) => a.nextFollowUp.localeCompare(b.nextFollowUp));
+  const dueToday = active.filter(l => l.nextFollowUp === t);
+  if (!overdue.length && !dueToday.length) return <Empty icon="✅" msg="You're all caught up! No overdue or due-today follow-ups." />;
+  return (
+    <div>
+      {overdue.length > 0 && (
+        <div style={{marginBottom:28}}>
+          <div className="fu-section-lbl" style={{color:"var(--danger)"}}>
+            ⚠ Overdue <span className="fu-count-badge" style={{background:"var(--danger-bg)",color:"var(--danger)"}}>{overdue.length}</span>
+          </div>
+          <div className="card-grid">{overdue.map(l => <LeadCard key={l.id} lead={l} onEdit={onEdit} />)}</div>
+        </div>
+      )}
+      {dueToday.length > 0 && (
+        <div>
+          <div className="fu-section-lbl" style={{color:"var(--warning)"}}>
+            ● Due Today <span className="fu-count-badge" style={{background:"var(--warning-bg)",color:"var(--warning)"}}>{dueToday.length}</span>
+          </div>
+          <div className="card-grid">{dueToday.map(l => <LeadCard key={l.id} lead={l} onEdit={onEdit} />)}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================================================================
+   HOT LEADS
+================================================================ */
+function HotLeadsView({ leads, onEdit }) {
+  const PR = { High:3, Medium:2, Low:1 };
+  const hot = leads
+    .filter(l => l.temperature === "Hot" && l.status !== "Closed Won" && l.status !== "Closed Lost")
+    .sort((a,b) => PR[b.priority] - PR[a.priority]);
+  if (!hot.length) return <Empty icon="🔥" msg="No hot leads. Mark a lead's temperature as Hot to see it here." />;
+  return (
+    <div>
+      <div className="sec-hdr">
+        <div className="sec-title">🔥 Hot Leads <span className="sec-sub">{hot.length} lead{hot.length!==1?"s":""}</span></div>
+      </div>
+      <div className="card-grid">{hot.map(l => <LeadCard key={l.id} lead={l} onEdit={onEdit} />)}</div>
+    </div>
+  );
+}
+
+/* ================================================================
+   CLOSED DEALS
+================================================================ */
+function ClosedDealsView({ leads, onEdit }) {
+  const won  = leads.filter(l => l.status === "Closed Won");
+  const lost = leads.filter(l => l.status === "Closed Lost");
+  const all  = [...won, ...lost];
+  const wonRev = won.reduce((s,l) => s + (l.dealValue||0), 0);
+  if (!all.length) return <Empty icon="📋" msg="No closed deals yet." />;
+  const wr = all.length ? Math.round((won.length/all.length)*100) : 0;
+  return (
+    <div>
+      <div className="summary-row">
+        <div className="sum-card" style={{borderColor:"rgba(52,211,153,0.3)"}}>
+          <div className="kpi-label" style={{color:"var(--success)"}}>Won Revenue</div>
+          <div className="kpi-value" style={{fontSize:24,color:"var(--success)"}}>{fmtCur(wonRev)}</div>
+          <div className="kpi-sub">{won.length} deal{won.length!==1?"s":""} closed</div>
+        </div>
+        <div className="sum-card" style={{borderColor:"rgba(248,113,113,0.3)"}}>
+          <div className="kpi-label" style={{color:"var(--danger)"}}>Deals Lost</div>
+          <div className="kpi-value" style={{fontSize:24,color:"var(--danger)"}}>{lost.length}</div>
+          <div className="kpi-sub">Lost opportunities</div>
+        </div>
+        <div className="sum-card">
+          <div className="kpi-label">Win Rate</div>
+          <div className="kpi-value" style={{fontSize:24}}>{wr}%</div>
+          <div className="kpi-sub">{won.length}W / {lost.length}L</div>
+        </div>
+      </div>
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Company</th><th>Contact</th><th>Source</th>
+              <th>Outcome</th><th>Deal Value</th><th>Last Contact</th><th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {all.map(l => (
+              <tr key={l.id} onClick={() => onEdit(l)}>
+                <td><strong>{l.isDecisionMaker && <span className="dm-star">★</span>}{l.company}</strong></td>
+                <td>{l.contactName}</td>
+                <td><Badge label={l.source} s={SRC[l.source]} /></td>
+                <td><Badge label={l.status} s={SC[l.status]} dot /></td>
+                <td style={{fontWeight:600}}>{fmtCur(l.dealValue)}</td>
+                <td>{fmtDate(l.lastContact)}</td>
+                <td style={{color:"var(--text-muted)",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l.notes||"—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
+   ALL LEADS
+================================================================ */
+function AllLeadsView({ leads, onEdit }) {
+  const [q, setQ]       = useState("");
+  const [flt, setFlt]   = useState({ status:"", source:"", temperature:"", priority:"" });
+  const [srt, setSrt]   = useState({ col:"company", dir:"asc" });
+  const setF = (k,v)    => setFlt(f => ({...f,[k]:v}));
+  const tog  = col      => setSrt(s => s.col===col ? {col,dir:s.dir==="asc"?"desc":"asc"} : {col,dir:"asc"});
+  const si   = col      => srt.col===col ? (srt.dir==="asc"?" ↑":" ↓") : " ↕";
+  const PR   = { High:3, Medium:2, Low:1 };
+
+  const rows = useMemo(() => {
+    let r = leads;
+    if (q) { const lq=q.toLowerCase(); r=r.filter(l=>l.company.toLowerCase().includes(lq)||l.contactName.toLowerCase().includes(lq)); }
+    if (flt.status)      r=r.filter(l=>l.status===flt.status);
+    if (flt.source)      r=r.filter(l=>l.source===flt.source);
+    if (flt.temperature) r=r.filter(l=>l.temperature===flt.temperature);
+    if (flt.priority)    r=r.filter(l=>l.priority===flt.priority);
+    return [...r].sort((a,b)=>{
+      let av,bv;
+      if (srt.col==="company")     { av=a.company;      bv=b.company; }
+      else if (srt.col==="contact"){ av=a.contactName;  bv=b.contactName; }
+      else if (srt.col==="source") { av=a.source;       bv=b.source; }
+      else if (srt.col==="status") { av=a.status;       bv=b.status; }
+      else if (srt.col==="temp")   { av=a.temperature;  bv=b.temperature; }
+      else if (srt.col==="pri")    { av=PR[a.priority]; bv=PR[b.priority]; }
+      else if (srt.col==="val")    { av=a.dealValue||0; bv=b.dealValue||0; }
+      else if (srt.col==="fu")     { av=a.nextFollowUp||""; bv=b.nextFollowUp||""; }
+      else if (srt.col==="mtg")    { av=a.meetingStatus; bv=b.meetingStatus; }
+      else { av=a.company; bv=b.company; }
+      if (typeof av==="number") return srt.dir==="asc"?av-bv:bv-av;
+      return srt.dir==="asc"?String(av).localeCompare(String(bv)):String(bv).localeCompare(String(av));
+    });
+  }, [leads, q, flt, srt]);
+
+  const MEETING_STYLE = {
+    "None":      { bg:"rgba(71,85,105,0.15)",   text:"#64748b" },
+    "Scheduled": { bg:"rgba(34,211,238,0.12)",  text:"#67e8f9" },
+    "Completed": { bg:"rgba(52,211,153,0.13)",  text:"#6ee7b7" },
+  };
+
+  return (
+    <div>
+      <div className="filters">
+        <input className="input" placeholder="🔍  Search company or contact…" value={q} onChange={e=>setQ(e.target.value)} />
+        {[["status",STATUSES],["source",SOURCES],["temperature",TEMPERATURES],["priority",PRIORITIES]].map(([k,opts])=>(
+          <select key={k} className="fsel" value={flt[k]} onChange={e=>setF(k,e.target.value)}>
+            <option value="">All {k[0].toUpperCase()+k.slice(1)}s</option>
+            {opts.map(o=><option key={o} value={o}>{o}</option>)}
+          </select>
+        ))}
+        <span style={{fontSize:12,color:"var(--text-dim)",marginLeft:"auto",fontWeight:600}}>{rows.length} result{rows.length!==1?"s":""}</span>
+      </div>
+      {rows.length===0 ? <Empty icon="🔍" msg="No leads match your filters." /> : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th onClick={()=>tog("company")}>Company{si("company")}</th>
+                <th onClick={()=>tog("contact")}>Contact{si("contact")}</th>
+                <th onClick={()=>tog("source")}>Source{si("source")}</th>
+                <th onClick={()=>tog("status")}>Status{si("status")}</th>
+                <th onClick={()=>tog("temp")}>Temp{si("temp")}</th>
+                <th onClick={()=>tog("pri")}>Priority{si("pri")}</th>
+                <th onClick={()=>tog("val")}>Value{si("val")}</th>
+                <th onClick={()=>tog("fu")}>Follow-up{si("fu")}</th>
+                <th onClick={()=>tog("mtg")}>Meeting{si("mtg")}</th>
+                <th>DM</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(l=>(
+                <tr key={l.id} onClick={()=>onEdit(l)}>
+                  <td><strong>{l.company}</strong></td>
+                  <td>{l.contactName}</td>
+                  <td><Badge label={l.source}      s={SRC[l.source]} /></td>
+                  <td><Badge label={l.status}      s={SC[l.status]}  dot /></td>
+                  <td><Badge label={l.temperature} s={TC[l.temperature]} dot /></td>
+                  <td><Badge label={l.priority}    s={PC[l.priority]} /></td>
+                  <td style={{fontWeight:l.dealValue?600:400}}>{fmtCur(l.dealValue)}</td>
+                  <td><FuDate d={l.nextFollowUp} /></td>
+                  <td><Badge label={l.meetingStatus} s={MEETING_STYLE[l.meetingStatus]} /></td>
+                  <td style={{textAlign:"center"}}>{l.isDecisionMaker?<span className="dm-star" title="Decision Maker">★</span>:<span style={{color:"var(--text-dim)"}}>–</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================================================================
+   ANALYTICS
+================================================================ */
+function ptp(cx,cy,r,deg){ const rad=(deg-90)*Math.PI/180; return {x:cx+r*Math.cos(rad),y:cy+r*Math.sin(rad)}; }
+function arcPath(cx,cy,oR,iR,s,e){
+  if(e-s>=359.9){
+    const m1=ptp(cx,cy,oR,s),m2=ptp(cx,cy,oR,s+180);
+    const n1=ptp(cx,cy,iR,s),n2=ptp(cx,cy,iR,s+180);
+    return `M${m1.x},${m1.y}A${oR},${oR},0,1,1,${m2.x},${m2.y}A${oR},${oR},0,1,1,${m1.x},${m1.y}M${n1.x},${n1.y}A${iR},${iR},0,1,0,${n2.x},${n2.y}A${iR},${iR},0,1,0,${n1.x},${n1.y}Z`;
+  }
+  const s1=ptp(cx,cy,oR,s),e1=ptp(cx,cy,oR,e),s2=ptp(cx,cy,iR,e),e2=ptp(cx,cy,iR,s);
+  const lg=e-s>180?1:0;
+  return `M${s1.x},${s1.y}A${oR},${oR},0,${lg},1,${e1.x},${e1.y}L${s2.x},${s2.y}A${iR},${iR},0,${lg},0,${e2.x},${e2.y}Z`;
+}
+
+function AnalyticsView({ leads }) {
+  const total   = leads.length;
+  const won     = leads.filter(l=>l.status==="Closed Won").length;
+  const conv    = total?Math.round(won/total*100):0;
+  const mtgs    = leads.filter(l=>l.meetingStatus!=="None").length;
+  const pipVal  = leads.filter(l=>l.status!=="Closed Lost").reduce((s,l)=>s+(l.dealValue||0),0);
+  const calls   = leads.filter(l=>l.source==="Call").length;
+  const emails  = leads.filter(l=>l.source==="Email").length;
+
+  const kpis = [
+    {label:"Total Leads",     value:total,            sub:"in pipeline"},
+    {label:"Conversion Rate", value:`${conv}%`,       sub:`${won} closed won`},
+    {label:"Meetings",        value:mtgs,             sub:"scheduled or done"},
+    {label:"Pipeline Value",  value:fmtCur(pipVal),   sub:"excl. lost deals", sm:true},
+    {label:"Calls",           value:calls,            sub:"inbound/outbound"},
+    {label:"Emails",          value:emails,           sub:"email outreach"},
+  ];
+
+  const sCounts = STATUSES.map(s=>({ s, n:leads.filter(l=>l.status===s).length, c:SC[s].dot }));
+  const maxN = Math.max(...sCounts.map(x=>x.n),1);
+
+  const srcCounts = SOURCES.map((s,i)=>({ s, n:leads.filter(l=>l.source===s).length, c:CHART_COLORS[i] })).filter(x=>x.n>0);
+  const srcTotal  = srcCounts.reduce((a,x)=>a+x.n,0);
+  let ang = 0;
+  const slices = srcCounts.map(x=>{ const a=(x.n/srcTotal)*360; const path=arcPath(100,100,78,48,ang,ang+a); ang+=a; return {...x,path}; });
+
+  return (
+    <div>
+      <div className="kpi-grid">
+        {kpis.map((k,i)=>(
+          <div key={i} className="kpi-card">
+            <div className="kpi-label">{k.label}</div>
+            <div className="kpi-value" style={{fontSize:k.sm?20:28}}>{k.value}</div>
+            <div className="kpi-sub">{k.sub}</div>
+          </div>
+        ))}
+      </div>
+      <div className="chart-row">
+        <div className="chart-panel">
+          <div className="chart-title">Leads by Status</div>
+          {sCounts.map(({s,n,c})=>(
+            <div key={s} className="bar-row">
+              <div className="bar-lbl" title={s}>{s}</div>
+              <div className="bar-track">
+                <div className="bar-fill" style={{width:`${(n/maxN)*100}%`,background:c,opacity:n===0?0:1}} />
+              </div>
+              <div className="bar-n">{n}</div>
+            </div>
+          ))}
+        </div>
+        <div className="chart-panel">
+          <div className="chart-title">Leads by Source</div>
+          {srcTotal===0 ? <Empty icon="📊" msg="No data yet." /> : (
+            <div className="donut-wrap">
+              <svg viewBox="0 0 200 200" width="155" height="155" style={{flexShrink:0}}>
+                {slices.map((s,i)=>(
+                  <path key={i} d={s.path} fill={s.c} stroke="var(--bg)" strokeWidth="2.5" />
+                ))}
+                <text x="100" y="94"  textAnchor="middle" fill="var(--text)" fontSize="22" fontWeight="800" fontFamily="Bricolage Grotesque,sans-serif">{srcTotal}</text>
+                <text x="100" y="112" textAnchor="middle" fill="var(--text-dim)" fontSize="11" fontFamily="DM Sans,sans-serif">leads</text>
+              </svg>
+              <div className="donut-legend">
+                {slices.map((s,i)=>(
+                  <div key={i} className="dl-item">
+                    <div className="dl-dot" style={{background:s.c}} />
+                    <span>{s.s}: <strong style={{color:"var(--text)"}}>{s.n}</strong></span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
+   LEAD MODAL
+================================================================ */
+const DEF = {
+  company:"",contactName:"",email:"",phone:"",linkedIn:"",
+  source:"LinkedIn",status:"Not Contacted",temperature:"Cold",
+  priority:"Medium",meetingStatus:"None",
+  lastContact:todayStr(),nextFollowUp:"",
+  dealValue:"",isDecisionMaker:false,notes:"",
+};
+
+function LeadModal({ lead, onSave, onDelete, onClose }) {
+  const [f, setF]           = useState(lead ? {...lead, dealValue: lead.dealValue??""} : {...DEF});
+  const [confirmDel, setCd] = useState(false);
+  const [errs, setErrs]     = useState({});
+  const isEdit = !!lead;
+
+  const set = (k,v) => { setF(p=>({...p,[k]:v})); if (errs[k]) setErrs(e=>({...e,[k]:null})); };
+  const h   = e => set(e.target.name, e.target.type==="checkbox"?e.target.checked:e.target.value);
+
+  const save = () => {
+    const e = {};
+    if (!f.company.trim())     e.company = "Company is required";
+    if (!f.contactName.trim()) e.contactName = "Contact name is required";
+    if (Object.keys(e).length) { setErrs(e); return; }
+    onSave({...f, dealValue: f.dealValue===""?null:Number(f.dealValue)});
+  };
+
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal">
+        <div className="modal-hdr">
+          <div className="modal-title">{isEdit?`Edit — ${lead.company}`:"Add New Lead"}</div>
+          <button className="modal-x" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <div className="form-grid">
+            <div className="fg">
+              <label className="flbl">Company *</label>
+              <input className="finput" name="company" value={f.company} onChange={h} placeholder="Acme Corp" />
+              {errs.company && <span className="ferr">{errs.company}</span>}
+            </div>
+            <div className="fg">
+              <label className="flbl">Contact Name *</label>
+              <input className="finput" name="contactName" value={f.contactName} onChange={h} placeholder="Jane Smith" />
+              {errs.contactName && <span className="ferr">{errs.contactName}</span>}
+            </div>
+            <div className="fg">
+              <label className="flbl">Email</label>
+              <input className="finput" name="email" value={f.email} onChange={h} placeholder="jane@acme.com" type="email" />
+            </div>
+            <div className="fg">
+              <label className="flbl">Phone</label>
+              <input className="finput" name="phone" value={f.phone} onChange={h} placeholder="+1 555-000-0000" />
+            </div>
+            <div className="fg f-full">
+              <label className="flbl">LinkedIn URL</label>
+              <input className="finput" name="linkedIn" value={f.linkedIn} onChange={h} placeholder="https://linkedin.com/in/janesmit" />
+            </div>
+            <div className="fg">
+              <label className="flbl">Source</label>
+              <select className="fsel2" name="source" value={f.source} onChange={h}>
+                {SOURCES.map(s=><option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="fg">
+              <label className="flbl">Status</label>
+              <select className="fsel2" name="status" value={f.status} onChange={h}>
+                {STATUSES.map(s=><option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="fg">
+              <label className="flbl">Temperature</label>
+              <select className="fsel2" name="temperature" value={f.temperature} onChange={h}>
+                {TEMPERATURES.map(s=><option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="fg">
+              <label className="flbl">Priority</label>
+              <select className="fsel2" name="priority" value={f.priority} onChange={h}>
+                {PRIORITIES.map(s=><option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="fg">
+              <label className="flbl">Meeting Status</label>
+              <select className="fsel2" name="meetingStatus" value={f.meetingStatus} onChange={h}>
+                {MEETING_STATUSES.map(s=><option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="fg">
+              <label className="flbl">Last Contact</label>
+              <input className="finput" name="lastContact" value={f.lastContact||""} onChange={h} type="date" />
+            </div>
+            <div className="fg">
+              <label className="flbl">Next Follow-up</label>
+              <input className="finput" name="nextFollowUp" value={f.nextFollowUp||""} onChange={h} type="date" />
+            </div>
+            <div className="fg">
+              <label className="flbl">Deal Value (USD)</label>
+              <input className="finput" name="dealValue" value={f.dealValue} onChange={h} type="number" placeholder="e.g. 50000" min="0" />
+            </div>
+            <div className="fg" style={{justifyContent:"flex-end"}}>
+              <label className="flbl">Decision Maker</label>
+              <label className="fcheck-row">
+                <input type="checkbox" name="isDecisionMaker" checked={f.isDecisionMaker} onChange={h} />
+                <span style={{fontSize:13,color:"var(--text-muted)"}}>This contact is the decision maker</span>
+              </label>
+            </div>
+            <div className="fg f-full">
+              <label className="flbl">Notes (pain points, context)</label>
+              <textarea className="ftarea" name="notes" value={f.notes} onChange={h} placeholder="Describe pain points, objections, context, next steps…" rows={4} />
+            </div>
+          </div>
+        </div>
+        <div className="modal-ftr">
+          <div>
+            {isEdit && !confirmDel && (
+              <button className="btn btn-danger btn-sm" onClick={()=>setCd(true)}>Delete Lead</button>
+            )}
+            {isEdit && confirmDel && (
+              <div className="del-confirm">
+                <span className="del-ask">Are you sure?</span>
+                <button className="btn btn-danger btn-sm" onClick={()=>onDelete(lead.id)}>Yes, delete</button>
+                <button className="btn btn-ghost btn-sm"  onClick={()=>setCd(false)}>Cancel</button>
+              </div>
+            )}
+          </div>
+          <div className="modal-ftr-r">
+            <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button className="btn btn-primary" onClick={save}>{isEdit?"Save Changes":"Add Lead"}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
+   INSTRUCTIONS PANEL
+================================================================ */
+function Instructions({ open, toggle }) {
+  const rules = [
+    ["Log every interaction","Update the lead record after every call, email, or LinkedIn message — no exceptions."],
+    ["Set a follow-up date","Always set a next follow-up date before closing the session. Never leave it blank."],
+    ["Move leads forward","If no progress in 7 days, mark temperature as Cold and reassess outreach strategy."],
+  ];
+  return (
+    <div className="instr">
+      <div className="instr-toggle" onClick={toggle}>
+        <div className="instr-hd"><span>📋</span> Field Protocol Rules</div>
+        <span className="instr-chev">{open?"▼ Collapse":"▲ Expand"}</span>
+      </div>
+      {open && (
+        <div className="instr-body">
+          {rules.map(([t,d],i)=>(
+            <div key={i} className="instr-rule">
+              <div className="instr-num">{i+1}</div>
+              <div className="instr-txt"><strong style={{color:"var(--text)"}}>{t}.</strong> {d}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ================================================================
+   APP
+================================================================ */
+function App() {
+  const [leads, setLeads]   = useState(SEED);
+  const [tab,   setTab]     = useState(0);
+  const [modal, setModal]   = useState(null);   // null = closed, false = new, lead = edit
+  const [instr, setInstr]   = useState(false);
+
+  const openNew  = () => setModal(false);
+  const openEdit = l => setModal(l);
+  const closeM   = () => setModal(null);
+
+  const save = data => {
+    if (data.id) setLeads(ls => ls.map(l => l.id===data.id?data:l));
+    else setLeads(ls => [...ls, {...data, id:Date.now()}]);
+    closeM();
+  };
+  const del = id => { setLeads(ls => ls.filter(l=>l.id!==id)); closeM(); };
+
+  const fuCount = useMemo(() => {
+    const t = todayStr();
+    return leads.filter(l=>l.status!=="Closed Won"&&l.status!=="Closed Lost"&&l.nextFollowUp&&l.nextFollowUp<=t).length;
+  }, [leads]);
+
+  const tabLabels = [
+    "Pipeline",
+    fuCount>0?`Follow-ups (${fuCount})`:"Follow-ups",
+    "Hot Leads","Closed Deals","All Leads","Analytics",
+  ];
+
+  return (
+    <div className="app">
+      <Header onNew={openNew} />
+      <TabNav labels={tabLabels} active={tab} setActive={setTab} />
+      <main className="content">
+        {tab===0 && <PipelineView    leads={leads} onEdit={openEdit} />}
+        {tab===1 && <FollowUpsView   leads={leads} onEdit={openEdit} />}
+        {tab===2 && <HotLeadsView    leads={leads} onEdit={openEdit} />}
+        {tab===3 && <ClosedDealsView leads={leads} onEdit={openEdit} />}
+        {tab===4 && <AllLeadsView    leads={leads} onEdit={openEdit} />}
+        {tab===5 && <AnalyticsView   leads={leads} />}
+      </main>
+      {modal !== null && (
+        <LeadModal
+          lead={modal || null}
+          onSave={save}
+          onDelete={del}
+          onClose={closeM}
+        />
+      )}
+      <Instructions open={instr} toggle={()=>setInstr(o=>!o)} />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
