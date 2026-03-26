@@ -27,7 +27,7 @@ export default function SidebarItem({
   onExpand,
   isExpanded = false,
 }: SidebarItemProps) {
-  const { updatePage, softDeletePage, createPage, showToast } = useApp();
+  const { updatePage, softDeletePage, createPage, showToast, getPageProject } = useApp();
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(page.title);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -68,7 +68,11 @@ export default function SidebarItem({
       label: 'Duplicate',
       icon: <Copy size={14} />,
       onClick: async () => {
-        const newPage = await createPage(page.parent_id ?? undefined);
+        const projectId = getPageProject(page.$id)?.id ?? null;
+        const newPage = await createPage({
+          parentId: page.parent_id ?? undefined,
+          projectId,
+        });
         if (newPage) await updatePage(newPage.$id, { title: `${page.title} (copy)`, icon: page.icon });
       },
     },
@@ -85,7 +89,7 @@ export default function SidebarItem({
     {
       label: 'Add sub-page',
       icon: <FolderPlus size={14} />,
-      onClick: () => createPage(page.$id),
+      onClick: () => { void createPage({ parentId: page.$id }); },
     },
     { label: '', separator: true, onClick: () => {} },
     {
@@ -148,7 +152,10 @@ export default function SidebarItem({
           <div className="sidebar-item-actions" onClick={e => e.stopPropagation()}>
             <button
               className="sidebar-icon-btn"
-              onClick={e => { e.stopPropagation(); createPage(page.$id); }}
+              onClick={e => {
+                e.stopPropagation();
+                void createPage({ parentId: page.$id });
+              }}
               title="Add sub-page"
             >
               <Plus size={14} />

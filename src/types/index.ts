@@ -34,6 +34,16 @@ export interface DashyPage extends Models.Document {
   template_id?: string;
 }
 
+export interface DashyProject {
+  id: string;
+  name: string;
+  icon?: string;
+  color?: string;
+  createdAt: string;
+}
+
+export type PageProjectMap = Record<string, string>;
+
 export interface Block extends Models.Document {
   page_id: string;
   userId: string;

@@ -5,7 +5,24 @@ import {
   COLLECTION_ID_PAGES, COLLECTION_ID_USER_SETTINGS, COLLECTION_ID_TEMPLATES,
   ID, Query
 } from '../lib/appwrite';
-import { DashyPage, Block, UserSettings, DashyTemplate, ModalType, Toast, ToastType } from '../types';
+import {
+  DashyPage,
+  Block,
+  UserSettings,
+  DashyTemplate,
+  ModalType,
+  Toast,
+  ToastType,
+  DashyProject,
+  PageProjectMap,
+} from '../types';
+
+interface CreatePageOptions {
+  parentId?: string;
+  templateId?: string;
+  projectId?: string | null;
+  title?: string;
+}
 
 interface AppContextType {
   // Auth
@@ -15,11 +32,18 @@ interface AppContextType {
   pages: DashyPage[];
   activePageId: string | null;
   setActivePageId: (id: string | null) => void;
-  createPage: (parentId?: string, templateId?: string) => Promise<DashyPage | null>;
+  createPage: (options?: CreatePageOptions) => Promise<DashyPage | null>;
   updatePage: (id: string, data: Partial<DashyPage>) => Promise<void>;
   softDeletePage: (id: string) => Promise<void>;
   restorePage: (id: string) => Promise<void>;
   permanentlyDeletePage: (id: string) => Promise<void>;
+  // Projects
+  projects: DashyProject[];
+  pageProjectMap: PageProjectMap;
+  createProject: (name?: string) => Promise<DashyProject>;
+  updateProject: (id: string, data: Partial<DashyProject>) => void;
+  assignPageToProject: (pageId: string, projectId: string | null) => void;
+  getPageProject: (pageId?: string | null) => DashyProject | null;
   // Blocks
   blocks: Block[];
   setBlocks: React.Dispatch<React.SetStateAction<Block[]>>;
@@ -41,6 +65,8 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | null>(null);
+const PROJECTS_STORAGE_KEY = 'dashy:projects';
+const PAGE_PROJECT_MAP_STORAGE_KEY = 'dashy:page-project-map';
 
 export function useApp() {
   const ctx = useContext(AppContext);
@@ -59,6 +85,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [activeModal, setActiveModal] = useState<ModalType>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [templates, setTemplates] = useState<DashyTemplate[]>([]);
+  const [projects, setProjects] = useState<DashyProject[]>([]);
+  const [pageProjectMap, setPageProjectMap] = useState<PageProjectMap>({});
 
   // ─── Auth ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -79,6 +107,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
     checkSession();
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setProjects([]);
+      setPageProjectMap({});
+      return;
+    }
+
+    try {
+      const storedProjects = localStorage.getItem(`${PROJECTS_STORAGE_KEY}:${user.$id}`);
+      const storedProjectMap = localStorage.getItem(`${PAGE_PROJECT_MAP_STORAGE_KEY}:${user.$id}`);
+
+      setProjects(storedProjects ? JSON.parse(storedProjects) : []);
+      setPageProjectMap(storedProjectMap ? JSON.parse(storedProjectMap) : {});
+    } catch {
+      setProjects([]);
+      setPageProjectMap({});
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    localStorage.setItem(`${PROJECTS_STORAGE_KEY}:${user.$id}`, JSON.stringify(projects));
+  }, [projects, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    localStorage.setItem(`${PAGE_PROJECT_MAP_STORAGE_KEY}:${user.$id}`, JSON.stringify(pageProjectMap));
+  }, [pageProjectMap, user]);
 
   // ─── Handle hash-based routing ─────────────────────────────────────────
   useEffect(() => {
@@ -123,13 +180,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const createPage = useCallback(async (parentId?: string, _templateId?: string): Promise<DashyPage | null> => {
+  const createPage = useCallback(async (options?: CreatePageOptions): Promise<DashyPage | null> => {
     if (!user) return null;
+
+    const parentId = options?.parentId;
+    const resolvedProjectId = options?.projectId ?? (parentId ? pageProjectMap[parentId] ?? null : null);
     // Optimistic: calculate sort_order
     const maxOrder = pages.reduce((m, p) => Math.max(m, p.sort_order ?? 0), 0);
     try {
       const newPage = await databases.createDocument<DashyPage>(DB_ID, COLLECTION_ID_PAGES, ID.unique(), {
-        title: 'Untitled',
+        title: options?.title?.trim() || 'Untitled',
         content: '',
         userId: user.$id,
         parent_id: parentId ?? null,
@@ -140,13 +200,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         cover_url: '',
       });
       setPages(prev => [...prev, newPage]);
+      if (resolvedProjectId) {
+        setPageProjectMap(prev => ({ ...prev, [newPage.$id]: resolvedProjectId }));
+      }
       setActivePageId(newPage.$id);
       return newPage;
     } catch (e: any) {
       showToast('Failed to create page', 'error');
       return null;
     }
-  }, [user, pages]);
+  }, [user, pages, pageProjectMap]);
 
   const updatePage = useCallback(async (id: string, data: Partial<DashyPage>) => {
     // Optimistic
@@ -195,6 +258,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const permanentlyDeletePage = useCallback(async (id: string) => {
     try {
       await databases.deleteDocument(DB_ID, COLLECTION_ID_PAGES, id);
+      setPageProjectMap(prev => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       showToast('Page permanently deleted', 'success');
     } catch {
       showToast('Failed to delete page', 'error');
@@ -280,11 +348,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (timer) clearTimeout(timer);
   }, []);
 
+  const createProject = useCallback(async (name = 'New project'): Promise<DashyProject> => {
+    const project: DashyProject = {
+      id: ID.unique(),
+      name,
+      icon: '📁',
+      color: '#615e57',
+      createdAt: new Date().toISOString(),
+    };
+
+    setProjects(prev => [...prev, project]);
+    showToast(`Created "${project.name}"`, 'success');
+    return project;
+  }, [showToast]);
+
+  const updateProject = useCallback((id: string, data: Partial<DashyProject>) => {
+    setProjects(prev => prev.map(project => (
+      project.id === id ? { ...project, ...data } : project
+    )));
+  }, []);
+
+  const assignPageToProject = useCallback((pageId: string, projectId: string | null) => {
+    setPageProjectMap(prev => {
+      if (!projectId) {
+        const next = { ...prev };
+        delete next[pageId];
+        return next;
+      }
+
+      return { ...prev, [pageId]: projectId };
+    });
+  }, []);
+
+  const getPageProject = useCallback((pageId?: string | null) => {
+    if (!pageId) return null;
+    const projectId = pageProjectMap[pageId];
+    if (!projectId) return null;
+    return projects.find(project => project.id === projectId) ?? null;
+  }, [pageProjectMap, projects]);
+
   return (
     <AppContext.Provider value={{
       user, loading,
       pages, activePageId, setActivePageId,
       createPage, updatePage, softDeletePage, restorePage, permanentlyDeletePage,
+      projects, pageProjectMap, createProject, updateProject, assignPageToProject, getPageProject,
       blocks, setBlocks,
       settings, updateSettings,
       isSidebarOpen, toggleSidebar,

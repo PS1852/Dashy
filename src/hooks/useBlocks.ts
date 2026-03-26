@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { databases, DB_ID, COLLECTION_ID_BLOCKS, ID, Query } from '../lib/appwrite';
 import { Block, BlockType, SaveStatus } from '../types';
+import { useApp } from '../context/AppContext';
 
 function getOrderBetween(prev: number | null, next: number | null): number {
   const a = prev ?? 0;
@@ -9,42 +10,60 @@ function getOrderBetween(prev: number | null, next: number | null): number {
 }
 
 export function useBlocks(pageId: string | null, userId: string | null) {
+  const { showToast } = useApp();
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [loading, setLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const dirtyRef = useRef<Set<string>>(new Set());
   const deletedRef = useRef<Set<string>>(new Set());
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const blocksRef = useRef<Block[]>([]);
+
+  useEffect(() => {
+    blocksRef.current = blocks;
+  }, [blocks]);
 
   // Fetch blocks when page changes
   useEffect(() => {
-    if (!pageId) { setBlocks([]); return; }
+    if (!pageId) {
+      setBlocks([]);
+      return;
+    }
+
+    let isCancelled = false;
     setLoading(true);
     setBlocks([]);
+
     databases.listDocuments<Block>(DB_ID, COLLECTION_ID_BLOCKS, [
       Query.equal('page_id', pageId),
       Query.orderAsc('sort_order'),
       Query.limit(500),
     ]).then(res => {
-      setBlocks(res.documents);
-    }).catch(console.error)
-      .finally(() => setLoading(false));
-  }, [pageId]);
+      if (!isCancelled) {
+        setBlocks(res.documents);
+      }
+    }).catch(error => {
+      console.error('fetch blocks error', error);
+      if (!isCancelled) {
+        setBlocks([]);
+        showToast('Failed to load page blocks', 'error');
+      }
+    }).finally(() => {
+      if (!isCancelled) {
+        setLoading(false);
+      }
+    });
 
-  // Debounced save
-  const triggerSave = useCallback(() => {
-    setSaveStatus('dirty');
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      performSave();
-    }, 1500);
-  }, []);
+    return () => {
+      isCancelled = true;
+    };
+  }, [pageId, showToast]);
 
   const performSave = useCallback(async () => {
     if (!pageId || !userId) return;
     setSaveStatus('saving');
 
-    const currentBlocks = blocks;
+    const currentBlocks = blocksRef.current;
 
     try {
       const updates: Promise<any>[] = [];
@@ -53,7 +72,7 @@ export function useBlocks(pageId: string | null, userId: string | null) {
         const block = currentBlocks.find(b => b.$id === blockId);
         if (!block) continue;
         const { $id, $collectionId, $databaseId, $createdAt, $updatedAt, $permissions, ...data } = block as any;
-        update: updates.push(
+        updates.push(
           databases.updateDocument(DB_ID, COLLECTION_ID_BLOCKS, blockId, data).catch(() => {
             // If update fails because doc doesn't exist, create it
           })
@@ -74,7 +93,24 @@ export function useBlocks(pageId: string | null, userId: string | null) {
     } catch {
       setSaveStatus('error');
     }
-  }, [blocks, pageId, userId]);
+  }, [pageId, userId]);
+
+  // Debounced save
+  const triggerSave = useCallback(() => {
+    setSaveStatus('dirty');
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      void performSave();
+    }, 1500);
+  }, [performSave]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, []);
 
   // ─── Block CRUD Operations ─────────────────────────────────────────────
 
@@ -101,17 +137,23 @@ export function useBlocks(pageId: string | null, userId: string | null) {
     };
 
     // Create in Appwrite
-    const created = await databases.createDocument<Block>(DB_ID, COLLECTION_ID_BLOCKS, ID.unique(), data);
+    try {
+      const created = await databases.createDocument<Block>(DB_ID, COLLECTION_ID_BLOCKS, ID.unique(), data);
 
-    setBlocks(prev => {
-      const insertAt = afterIdx + 1;
-      const next = [...prev];
-      next.splice(insertAt, 0, created);
-      return next;
-    });
+      setBlocks(prev => {
+        const insertAt = afterIdx + 1;
+        const next = [...prev];
+        next.splice(insertAt, 0, created);
+        return next;
+      });
 
-    return created;
-  }, [blocks, pageId, userId]);
+      return created;
+    } catch (error) {
+      console.error('add block error', error);
+      showToast('Failed to add block', 'error');
+      throw error;
+    }
+  }, [blocks, pageId, showToast, userId]);
 
   const updateBlock = useCallback((blockId: string, changes: Partial<Block>) => {
     setBlocks(prev => prev.map(b => b.$id === blockId ? { ...b, ...changes } : b));
@@ -128,8 +170,9 @@ export function useBlocks(pageId: string | null, userId: string | null) {
       deletedRef.current.delete(blockId);
     } catch (e) {
       console.error('delete block error', e);
+      showToast('Failed to delete block', 'error');
     }
-  }, []);
+  }, [showToast]);
 
   const reorderBlocks = useCallback(async (reordered: Block[]) => {
     setBlocks(reordered);

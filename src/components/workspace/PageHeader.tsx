@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { DashyPage } from '../../types';
 
 
@@ -96,6 +96,15 @@ export default function PageHeader({ page, onUpdatePage, onTitleChange }: PageHe
   const [showIconPicker, setShowIconPicker] = useState(false);
   const titleRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (!titleRef.current || document.activeElement === titleRef.current) return;
+
+    const nextTitle = page.title || '';
+    if (titleRef.current.textContent !== nextTitle) {
+      titleRef.current.textContent = nextTitle;
+    }
+  }, [page.$id, page.title]);
+
   const handleTitleInput = (e: React.FormEvent<HTMLDivElement>) => {
     const val = (e.currentTarget as HTMLDivElement).textContent ?? '';
     onTitleChange(val);
@@ -178,8 +187,13 @@ export default function PageHeader({ page, onUpdatePage, onTitleChange }: PageHe
           className="page-title-editor"
           data-placeholder="Untitled"
           onInput={handleTitleInput}
-          onBlur={() => onUpdatePage({ title: titleRef.current?.textContent ?? 'Untitled' })}
-          dangerouslySetInnerHTML={{ __html: page.title || '' }}
+          onBlur={() => {
+            const nextTitle = titleRef.current?.textContent?.trim() || 'Untitled';
+            if (titleRef.current && titleRef.current.textContent !== nextTitle) {
+              titleRef.current.textContent = nextTitle;
+            }
+            onUpdatePage({ title: nextTitle });
+          }}
         />
       </div>
     </div>

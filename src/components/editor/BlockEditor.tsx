@@ -1,4 +1,4 @@
-import { useState, useCallback, KeyboardEvent } from 'react';
+import { useState, useCallback, KeyboardEvent, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { Block, BlockType } from '../../types';
@@ -20,6 +20,23 @@ export default function BlockEditor({
   onAddBlock, onUpdateBlock, onDeleteBlock, onChangeType,
 }: BlockEditorProps) {
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
+  const emptyEditorRef = useRef<HTMLDivElement>(null);
+
+  const createStarterBlock = useCallback(async (content = '') => {
+    try {
+      const newBlock = await onAddBlock('paragraph', null, content);
+      setFocusedBlockId(newBlock.$id);
+      return newBlock;
+    } catch {
+      return null;
+    }
+  }, [onAddBlock]);
+
+  useEffect(() => {
+    if (!loading && blocks.length === 0) {
+      emptyEditorRef.current?.focus();
+    }
+  }, [blocks.length, loading]);
 
   const handleKeyDown = useCallback((e: KeyboardEvent<HTMLElement>, blockId: string) => {
     const blockIndex = blocks.findIndex(b => b.$id === blockId);
@@ -84,6 +101,19 @@ export default function BlockEditor({
   const wordCount = countWords(blocks);
   const readMin = readingTime(wordCount);
 
+  const handleEmptyEditorKeyDown = useCallback((e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void createStarterBlock();
+      return;
+    }
+
+    if (e.key.length !== 1 || e.metaKey || e.ctrlKey || e.altKey) return;
+
+    e.preventDefault();
+    void createStarterBlock(e.key);
+  }, [createStarterBlock]);
+
   if (loading) {
     return (
       <div className="block-editor-loading">
@@ -97,11 +127,20 @@ export default function BlockEditor({
   return (
     <div className="block-editor">
       {blocks.length === 0 && (
-        <div className="block-editor-empty">
+        <div
+          ref={emptyEditorRef}
+          className="block-editor-empty"
+          tabIndex={0}
+          onClick={() => { void createStarterBlock(); }}
+          onKeyDown={handleEmptyEditorKeyDown}
+        >
           <p className="block-editor-empty-hint">✨ Start writing... or press <kbd>/</kbd> for commands</p>
           <button
             className="block-editor-empty-btn"
-            onClick={() => onAddBlock('paragraph', null).then(b => setFocusedBlockId(b.$id))}
+            onClick={e => {
+              e.stopPropagation();
+              void createStarterBlock();
+            }}
           >
             <Plus size={14} /> Add a block
           </button>

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, KeyboardEvent } from 'react';
+import { useRef, useEffect, useState, KeyboardEvent, CSSProperties, RefObject } from 'react';
 import { Block, BlockType } from '../../../types';
 
 interface BlockProps {
@@ -12,29 +12,36 @@ interface BlockProps {
   placeholder?: string;
 }
 
+function useEditableContentSync(
+  ref: RefObject<HTMLElement | null>,
+  value: string,
+  isFocused: boolean
+) {
+  useEffect(() => {
+    if (!isFocused || !ref.current || document.activeElement === ref.current) return;
+
+    ref.current.focus();
+    const range = document.createRange();
+    const sel = window.getSelection();
+    range.selectNodeContents(ref.current);
+    range.collapse(false);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  }, [isFocused, ref]);
+
+  useEffect(() => {
+    if (!ref.current || document.activeElement === ref.current) return;
+    if (ref.current.textContent !== value) {
+      ref.current.textContent = value;
+    }
+  }, [ref, value]);
+}
+
 export function ParagraphBlock({ block, isFocused, onFocus, onChange, onKeyDown, placeholder }: BlockProps) {
   const ref = useRef<HTMLDivElement>(null);
+  useEditableContentSync(ref, block.content ?? '', isFocused);
 
-  useEffect(() => {
-    if (isFocused && ref.current && document.activeElement !== ref.current) {
-      ref.current.focus();
-      // Move cursor to end
-      const range = document.createRange();
-      const sel = window.getSelection();
-      range.selectNodeContents(ref.current);
-      range.collapse(false);
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-    }
-  }, [isFocused]);
-
-  useEffect(() => {
-    if (ref.current && ref.current.textContent !== block.content) {
-      ref.current.textContent = block.content ?? '';
-    }
-  }, [block.$id]);
-
-  const style: React.CSSProperties = {
+  const style: CSSProperties = {
     color: block.color?.startsWith('bg-') ? undefined : block.color,
     backgroundColor: block.color?.startsWith('bg-') ? block.color.slice(3) : undefined,
     paddingLeft: `${(block.indent_level ?? 0) * 24}px`,
@@ -64,24 +71,7 @@ export function HeadingBlock({ block, isFocused, onFocus, onChange, onKeyDown }:
   const placeholderMap: Record<string, string> = {
     heading_1: 'Heading 1', heading_2: 'Heading 2', heading_3: 'Heading 3',
   };
-
-  useEffect(() => {
-    if (isFocused && ref.current && document.activeElement !== ref.current) {
-      ref.current.focus();
-      const range = document.createRange();
-      const sel = window.getSelection();
-      range.selectNodeContents(ref.current);
-      range.collapse(false);
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-    }
-  }, [isFocused]);
-
-  useEffect(() => {
-    if (ref.current && ref.current.textContent !== block.content) {
-      ref.current.textContent = block.content ?? '';
-    }
-  }, [block.$id]);
+  useEditableContentSync(ref, block.content ?? '', isFocused);
 
   return (
     <Tag
@@ -99,18 +89,7 @@ export function HeadingBlock({ block, isFocused, onFocus, onChange, onKeyDown }:
 
 export function TodoBlock({ block, isFocused, onFocus, onChange, onKeyDown, onCheckToggle }: BlockProps) {
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isFocused && ref.current && document.activeElement !== ref.current) {
-      ref.current.focus();
-    }
-  }, [isFocused]);
-
-  useEffect(() => {
-    if (ref.current && ref.current.textContent !== block.content) {
-      ref.current.textContent = block.content ?? '';
-    }
-  }, [block.$id]);
+  useEditableContentSync(ref, block.content ?? '', isFocused);
 
   return (
     <div className="block-todo" style={{ paddingLeft: `${(block.indent_level ?? 0) * 24}px` }}>
@@ -143,13 +122,7 @@ export function BulletedListBlock({ block, isFocused, onFocus, onChange, onKeyDo
   const ref = useRef<HTMLDivElement>(null);
   const bulletMap = ['•', '◦', '▪', '▸'];
   const bullet = bulletMap[Math.min(block.indent_level ?? 0, 3)];
-
-  useEffect(() => {
-    if (isFocused && ref.current && document.activeElement !== ref.current) ref.current.focus();
-  }, [isFocused]);
-  useEffect(() => {
-    if (ref.current && ref.current.textContent !== block.content) ref.current.textContent = block.content ?? '';
-  }, [block.$id]);
+  useEditableContentSync(ref, block.content ?? '', isFocused);
 
   return (
     <div className="block-list-item" style={{ paddingLeft: `${(block.indent_level ?? 0) * 24}px` }}>
@@ -170,13 +143,7 @@ export function BulletedListBlock({ block, isFocused, onFocus, onChange, onKeyDo
 
 export function NumberedListBlock({ block, isFocused, onFocus, onChange, onKeyDown, numberedIndex = 1 }: BlockProps) {
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isFocused && ref.current && document.activeElement !== ref.current) ref.current.focus();
-  }, [isFocused]);
-  useEffect(() => {
-    if (ref.current && ref.current.textContent !== block.content) ref.current.textContent = block.content ?? '';
-  }, [block.$id]);
+  useEditableContentSync(ref, block.content ?? '', isFocused);
 
   return (
     <div className="block-list-item" style={{ paddingLeft: `${(block.indent_level ?? 0) * 24}px` }}>
@@ -197,13 +164,7 @@ export function NumberedListBlock({ block, isFocused, onFocus, onChange, onKeyDo
 
 export function QuoteBlock({ block, isFocused, onFocus, onChange, onKeyDown }: BlockProps) {
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isFocused && ref.current && document.activeElement !== ref.current) ref.current.focus();
-  }, [isFocused]);
-  useEffect(() => {
-    if (ref.current && ref.current.textContent !== block.content) ref.current.textContent = block.content ?? '';
-  }, [block.$id]);
+  useEditableContentSync(ref, block.content ?? '', isFocused);
 
   return (
     <div className="block-quote">
@@ -223,13 +184,7 @@ export function QuoteBlock({ block, isFocused, onFocus, onChange, onKeyDown }: B
 
 export function CalloutBlock({ block, isFocused, onFocus, onChange, onKeyDown }: BlockProps) {
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isFocused && ref.current && document.activeElement !== ref.current) ref.current.focus();
-  }, [isFocused]);
-  useEffect(() => {
-    if (ref.current && ref.current.textContent !== block.content) ref.current.textContent = block.content ?? '';
-  }, [block.$id]);
+  useEditableContentSync(ref, block.content ?? '', isFocused);
 
   return (
     <div className="block-callout">
@@ -323,12 +278,7 @@ export function ToggleBlock({ block, isFocused, onFocus, onChange, onKeyDown }: 
     localStorage.setItem(`toggle_${block.$id}`, JSON.stringify(next));
   };
 
-  useEffect(() => {
-    if (isFocused && ref.current && document.activeElement !== ref.current) ref.current.focus();
-  }, [isFocused]);
-  useEffect(() => {
-    if (ref.current && ref.current.textContent !== block.content) ref.current.textContent = block.content ?? '';
-  }, [block.$id]);
+  useEditableContentSync(ref, block.content ?? '', isFocused);
 
   return (
     <div className="block-toggle">
@@ -349,4 +299,3 @@ export function ToggleBlock({ block, isFocused, onFocus, onChange, onKeyDown }: 
     </div>
   );
 }
-

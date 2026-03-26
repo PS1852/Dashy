@@ -32,11 +32,12 @@ interface WorkspaceProps {
 }
 
 export default function Workspace({ page, onUpdatePage }: WorkspaceProps) {
-  const { isSidebarOpen, toggleSidebar, openModal, user } = useApp();
+  const { isSidebarOpen, toggleSidebar, openModal, user, createPage, getPageProject } = useApp();
   const {
     blocks, loading, saveStatus,
     addBlock, updateBlock, deleteBlock, changeBlockType,
   } = useBlocks(page?.$id ?? null, user?.$id ?? null);
+  const activeProject = getPageProject(page?.$id);
 
   // Update browser tab title
   useEffect(() => {
@@ -57,7 +58,7 @@ export default function Workspace({ page, onUpdatePage }: WorkspaceProps) {
           <p>Select a page from the sidebar, or create a new one to start writing.</p>
           <button
             className="empty-create-btn"
-            onClick={() => useApp()}  // see App.tsx for proper create
+            onClick={() => { void createPage(); }}
           >
             + Create a page
           </button>
@@ -79,6 +80,12 @@ export default function Workspace({ page, onUpdatePage }: WorkspaceProps) {
           <nav className="workspace-breadcrumb" aria-label="Breadcrumb">
             <span className="breadcrumb-root">Dashy</span>
             <span className="breadcrumb-sep">/</span>
+            {activeProject && (
+              <>
+                <span className="breadcrumb-project">{activeProject.icon} {activeProject.name}</span>
+                <span className="breadcrumb-sep">/</span>
+              </>
+            )}
             <span className="breadcrumb-current">{page.icon && `${page.icon} `}{page.title || 'Untitled'}</span>
           </nav>
         </div>

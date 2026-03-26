@@ -1,15 +1,121 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Search, Plus, Settings, Trash2, Star, HelpCircle, LogOut, PanelLeftClose } from 'lucide-react';
-import { motion } from 'framer-motion';
+import {
+  Search,
+  Plus,
+  Settings,
+  Trash2,
+  Star,
+  HelpCircle,
+  LogOut,
+  PanelLeftClose,
+  FolderPlus,
+  ChevronRight,
+  FolderOpen,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { account } from '../../lib/appwrite';
 import { useApp } from '../../context/AppContext';
 import { SidebarItemContainer } from './SidebarItem';
 import Tooltip from '../ui/Tooltip';
+import { DashyPage, DashyProject } from '../../types';
+
+interface ProjectGroupProps {
+  project: DashyProject;
+  pages: DashyPage[];
+  allProjectPages: DashyPage[];
+  onCreatePage: (projectId: string) => void;
+}
+
+function ProjectGroup({ project, pages, allProjectPages, onCreatePage }: ProjectGroupProps) {
+  const [expanded, setExpanded] = useState(true);
+  const hasPages = pages.length > 0;
+
+  return (
+    <div className="sidebar-project-group">
+      <div
+        className="sidebar-project-row"
+        onClick={() => {
+          if (hasPages) {
+            setExpanded(value => !value);
+            return;
+          }
+
+          onCreatePage(project.id);
+        }}
+      >
+        <span className={`sidebar-project-chevron ${hasPages ? 'visible' : ''}`}>
+          {hasPages && (
+            <motion.span
+              animate={{ rotate: expanded ? 90 : 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <ChevronRight size={14} />
+            </motion.span>
+          )}
+        </span>
+
+        <span className="sidebar-project-icon" style={{ color: project.color }}>
+          {project.icon || <FolderOpen size={14} />}
+        </span>
+
+        <span className="sidebar-project-title">{project.name}</span>
+
+        <button
+          className="sidebar-icon-btn"
+          onClick={event => {
+            event.stopPropagation();
+            onCreatePage(project.id);
+          }}
+          title={`Add page to ${project.name}`}
+        >
+          <Plus size={14} />
+        </button>
+      </div>
+
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            className="sidebar-project-pages"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.18 }}
+          >
+            {pages.length === 0 ? (
+              <button
+                className="sidebar-project-empty"
+                onClick={() => onCreatePage(project.id)}
+              >
+                <Plus size={12} /> Create first page
+              </button>
+            ) : (
+              pages.map(page => (
+                <SidebarItemContainer
+                  key={page.$id}
+                  page={page}
+                  depth={1}
+                  allPages={allProjectPages}
+                />
+              ))
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export default function Sidebar() {
   const {
-    user, pages,
-    createPage, openModal, isSidebarOpen, toggleSidebar,
+    user,
+    pages,
+    projects,
+    pageProjectMap,
+    createPage,
+    createProject,
+    openModal,
+    isSidebarOpen,
+    toggleSidebar,
   } = useApp();
 
   const [search, setSearch] = useState('');
@@ -22,6 +128,19 @@ export default function Sidebar() {
     await account.deleteSession('current');
     window.location.reload();
   };
+
+  const handleCreateProject = useCallback(async () => {
+    const nextProjectNumber = projects.length + 1;
+    const project = await createProject(`Project ${nextProjectNumber}`);
+    await createPage({
+      projectId: project.id,
+      title: `${project.name} home`,
+    });
+  }, [createPage, createProject, projects.length]);
+
+  const handleCreateProjectPage = useCallback((projectId: string) => {
+    void createPage({ projectId });
+  }, [createPage]);
 
   // ─── Sidebar resize ─────────────────────────────────────────────────────
   const onResizeMouseDown = useCallback((e: React.MouseEvent) => {
@@ -54,12 +173,29 @@ export default function Sidebar() {
   }, []);
 
   // ─── Filter pages by search ─────────────────────────────────────────────
-  const filtered = search
-    ? pages.filter(p => p.title?.toLowerCase().includes(search.toLowerCase()))
+  const query = search.trim().toLowerCase();
+  const filteredPages = query
+    ? pages.filter(page => page.title?.toLowerCase().includes(query))
     : pages;
 
-  const rootPages = filtered.filter(p => !p.parent_id);
-  const favoritePages = filtered.filter(p => p.is_favorite);
+  const favoritePages = filteredPages.filter(page => page.is_favorite);
+  const standalonePages = filteredPages.filter(page => !page.parent_id && !pageProjectMap[page.$id]);
+  const projectGroups = projects
+    .map(project => {
+      const allProjectPages = pages.filter(page => pageProjectMap[page.$id] === project.id);
+      const rootProjectPages = filteredPages.filter(page => (
+        pageProjectMap[page.$id] === project.id && !page.parent_id
+      ));
+      const matchesProject = project.name.toLowerCase().includes(query);
+
+      return {
+        project,
+        allProjectPages,
+        rootProjectPages,
+        matchesProject,
+      };
+    })
+    .filter(({ matchesProject, rootProjectPages }) => !query || matchesProject || rootProjectPages.length > 0);
 
   if (!isSidebarOpen) {
     return (
@@ -86,7 +222,6 @@ export default function Sidebar() {
       exit={{ x: -260 }}
       transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
     >
-      {/* Header: User info */}
       <div className="sidebar-header">
         <div className="user-info" onClick={() => openModal('settings')}>
           <div className="user-avatar">
@@ -101,34 +236,37 @@ export default function Sidebar() {
         </Tooltip>
       </div>
 
-      {/* Quick actions */}
       <div className="sidebar-quick-actions">
         <button className="sidebar-quick-btn" onClick={() => openModal('search')}>
           <Search size={15} />
           <span>Search</span>
           <kbd>⌘K</kbd>
         </button>
+
         <Tooltip content="New page (⌘N)">
-          <button className="sidebar-quick-btn sidebar-quick-new" onClick={() => createPage()}>
+          <button className="sidebar-quick-btn sidebar-quick-new" onClick={() => { void createPage(); }}>
             <Plus size={15} />
+          </button>
+        </Tooltip>
+
+        <Tooltip content="New project">
+          <button className="sidebar-quick-btn sidebar-quick-new" onClick={() => { void handleCreateProject(); }}>
+            <FolderPlus size={15} />
           </button>
         </Tooltip>
       </div>
 
-      {/* Local search filter */}
       <div className="sidebar-search-wrap">
         <Search size={13} className="sidebar-search-icon" />
         <input
           className="sidebar-search-input"
-          placeholder="Filter pages..."
+          placeholder="Filter pages and projects..."
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
       </div>
 
-      {/* Pages list */}
       <div className="sidebar-pages">
-        {/* Favorites */}
         {favoritePages.length > 0 && (
           <div className="sidebar-section">
             <div className="sidebar-section-title">
@@ -140,21 +278,48 @@ export default function Sidebar() {
           </div>
         )}
 
-        {/* Pages */}
+        <div className="sidebar-section">
+          <div className="sidebar-section-head">
+            <div className="sidebar-section-title">PROJECTS</div>
+            <button className="sidebar-section-action" onClick={() => { void handleCreateProject(); }}>
+              <FolderPlus size={12} /> New
+            </button>
+          </div>
+
+          {projectGroups.length === 0 ? (
+            <div className="sidebar-empty">
+              <span className="sidebar-empty-text">
+                {query ? 'No projects matching your search' : 'No projects yet'}
+              </span>
+              {!query && (
+                <button className="sidebar-empty-btn" onClick={() => { void handleCreateProject(); }}>
+                  <FolderPlus size={13} /> New project
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="sidebar-project-list">
+              {projectGroups.map(({ project, allProjectPages, rootProjectPages }) => (
+                <ProjectGroup
+                  key={project.id}
+                  project={project}
+                  pages={rootProjectPages}
+                  allProjectPages={allProjectPages}
+                  onCreatePage={handleCreateProjectPage}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="sidebar-section">
           <div className="sidebar-section-title">PAGES</div>
-          {rootPages.length === 0 ? (
+
+          {standalonePages.length === 0 ? (
             <div className="sidebar-empty">
-              {search ? (
-                <span className="sidebar-empty-text">No pages matching "{search}"</span>
-              ) : (
-                <>
-                  <span className="sidebar-empty-text">No pages yet</span>
-                  <button className="sidebar-empty-btn" onClick={() => createPage()}>
-                    <Plus size={13} /> New page
-                  </button>
-                </>
-              )}
+              <span className="sidebar-empty-text">
+                {query ? 'No pages matching your search' : 'No standalone pages yet. Use the + button above to create one.'}
+              </span>
             </div>
           ) : (
             <motion.div
@@ -165,20 +330,14 @@ export default function Sidebar() {
                 visible: { transition: { staggerChildren: 0.03 } },
               }}
             >
-              {rootPages.map(page => (
+              {standalonePages.map(page => (
                 <SidebarItemContainer key={page.$id} page={page} depth={0} allPages={pages} />
               ))}
             </motion.div>
           )}
         </div>
-
-        {/* New page */}
-        <button className="sidebar-new-page-btn" onClick={() => createPage()}>
-          <Plus size={14} /> New page
-        </button>
       </div>
 
-      {/* Footer */}
       <div className="sidebar-footer">
         <Tooltip content="Trash">
           <button className="sidebar-footer-btn" onClick={() => openModal('trash')}>
@@ -202,7 +361,6 @@ export default function Sidebar() {
         </Tooltip>
       </div>
 
-      {/* Resize handle */}
       <div className="sidebar-resize-handle" onMouseDown={onResizeMouseDown} />
     </motion.aside>
   );
