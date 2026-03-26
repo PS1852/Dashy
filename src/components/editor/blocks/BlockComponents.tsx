@@ -1,4 +1,6 @@
-import { useRef, useEffect, useState, KeyboardEvent, CSSProperties, RefObject } from 'react';
+import { useRef, useEffect, useState, KeyboardEvent, CSSProperties, RefObject, ChangeEvent } from 'react';
+import { Loader2, UploadCloud } from 'lucide-react';
+import { storage, STORAGE_BUCKET_IMAGES, ID } from '../../../lib/appwrite';
 import { Block, BlockType } from '../../../types';
 
 interface BlockProps {
@@ -296,6 +298,66 @@ export function ToggleBlock({ block, isFocused, onFocus, onChange, onKeyDown }: 
         />
       </div>
       {open && <div className="toggle-content">{/* child blocks rendered by BlockEditor */}</div>}
+    </div>
+  );
+}
+
+export function ImageBlock({ block, onChange, onKeyDown }: BlockProps) {
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const res = await storage.createFile(STORAGE_BUCKET_IMAGES, ID.unique(), file);
+      // Use getFilePreview which is more reliable for immediate rendering
+      const url = storage.getFilePreview(STORAGE_BUCKET_IMAGES, res.$id, 1000).toString();
+      onChange(url);
+    } catch (err) {
+      console.error('Upload failed:', err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const hasImage = !!block.content && (block.content.startsWith('http') || block.content.startsWith('blob'));
+
+  return (
+    <div 
+      className="block-image" 
+      onClick={() => fileInputRef.current?.click()}
+      onKeyDown={e => onKeyDown(e as any, block.$id)}
+      tabIndex={0}
+    >
+      <input 
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
+
+      {uploading && (
+        <div className="image-uploading">
+          <Loader2 className="spin" size={24} />
+        </div>
+      )}
+
+      {hasImage ? (
+        <img 
+          src={block.content} 
+          alt="User uploaded content" 
+          className={`image-img ${uploading ? 'loading' : ''}`}
+        />
+      ) : (
+        <div className="image-placeholder">
+          <UploadCloud className="image-placeholder-icon" size={32} />
+          <p className="image-placeholder-text">Click to upload image</p>
+        </div>
+      )}
     </div>
   );
 }

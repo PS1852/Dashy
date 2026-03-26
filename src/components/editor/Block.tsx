@@ -4,7 +4,7 @@ import { GripVertical, MoreHorizontal } from 'lucide-react';
 import { Block, BlockType } from '../../types';
 import {
   ParagraphBlock, HeadingBlock, TodoBlock, BulletedListBlock,
-  NumberedListBlock, QuoteBlock, CalloutBlock, CodeBlock, DividerBlock, ToggleBlock
+  NumberedListBlock, QuoteBlock, CalloutBlock, CodeBlock, DividerBlock, ToggleBlock, ImageBlock
 } from './blocks/BlockComponents';
 import BlockMenu from './BlockMenu';
 import { ContextMenu } from '../ui/ContextMenu';
@@ -104,6 +104,7 @@ export default function BlockEditorBlock({
       case 'code':         return <CodeBlock {...commonProps} />;
       case 'divider':      return <DividerBlock block={block} onKeyDown={onKeyDown} />;
       case 'toggle':       return <ToggleBlock {...commonProps} />;
+      case 'image':        return <ImageBlock {...commonProps} />;
       default:             return <ParagraphBlock {...commonProps} />;
     }
   };

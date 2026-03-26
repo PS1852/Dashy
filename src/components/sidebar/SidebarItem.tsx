@@ -31,7 +31,10 @@ export default function SidebarItem({
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(page.title);
   const inputRef = useRef<HTMLInputElement>(null);
-  const children = allPages.filter(p => p.parent_id === page.$id);
+  const project = getPageProject(page.$id);
+  // Nesting ONLY allowed for pages within a project
+  const canHaveChildren = !!project;
+  const children = canHaveChildren ? allPages.filter(p => p.parent_id === page.$id) : [];
   const hasChildren = children.length > 0;
 
   // ─── Rename logic ───────────────────────────────────────────────────────
@@ -86,7 +89,7 @@ export default function SidebarItem({
       },
     },
     { label: '', separator: true, onClick: () => {} },
-    {
+    canHaveChildren && {
       label: 'Add sub-page',
       icon: <FolderPlus size={14} />,
       onClick: () => { void createPage({ parentId: page.$id }); },
@@ -150,17 +153,19 @@ export default function SidebarItem({
         {/* Actions (hover) */}
         {!isRenaming && (
           <div className="sidebar-item-actions" onClick={e => e.stopPropagation()}>
-            <button
-              className="sidebar-icon-btn"
-              onClick={e => {
-                e.stopPropagation();
-                void createPage({ parentId: page.$id });
-              }}
-              title="Add sub-page"
-            >
-              <Plus size={14} />
-            </button>
-            <ContextMenu items={menuItems} trigger={<MoreHorizontal size={14} />} triggerClassName="sidebar-icon-btn" />
+            {canHaveChildren && (
+              <button
+                className="sidebar-icon-btn"
+                onClick={e => {
+                  e.stopPropagation();
+                  void createPage({ parentId: page.$id });
+                }}
+                title="Add sub-page"
+              >
+                <Plus size={14} />
+              </button>
+            )}
+            <ContextMenu items={menuItems.filter(Boolean) as any} trigger={<MoreHorizontal size={14} />} triggerClassName="sidebar-icon-btn" />
           </div>
         )}
       </div>

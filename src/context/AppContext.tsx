@@ -42,6 +42,7 @@ interface AppContextType {
   pageProjectMap: PageProjectMap;
   createProject: (name?: string) => Promise<DashyProject>;
   updateProject: (id: string, data: Partial<DashyProject>) => void;
+  deleteProject: (id: string) => void;
   assignPageToProject: (pageId: string, projectId: string | null) => void;
   getPageProject: (pageId?: string | null) => DashyProject | null;
   // Blocks
@@ -142,7 +143,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const handleHash = () => {
       const hash = window.location.hash;
       const match = hash.match(/^#\/page\/(.+)$/);
-      if (match) setActivePageId(match[1]);
+      if (match) {
+        setActivePageId(match[1]);
+      } else if (hash === '#/dashboard' || hash === '#/') {
+        setActivePageId(null);
+      }
     };
     handleHash();
     window.addEventListener('hashchange', handleHash);
@@ -152,6 +157,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (activePageId) {
       window.location.hash = `/page/${activePageId}`;
+    } else {
+      window.location.hash = '/dashboard';
     }
   }, [activePageId]);
 
@@ -165,15 +172,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         Query.limit(200),
       ]);
       setPages(res.documents);
-      if (res.documents.length > 0) {
-        // Check hash first
-        const hash = window.location.hash;
-        const match = hash.match(/^#\/page\/(.+)$/);
-        if (match && res.documents.find(p => p.$id === match[1])) {
-          setActivePageId(match[1]);
-        } else {
-          setActivePageId(res.documents[0].$id);
-        }
+      
+      // Check hash first
+      const hash = window.location.hash;
+      const match = hash.match(/^#\/page\/(.+)$/);
+      if (match && res.documents.find(p => p.$id === match[1])) {
+        setActivePageId(match[1]);
+      } else if (hash.includes('dashboard')) {
+        setActivePageId(null);
+      } else {
+        // Default to dashboard on every refresh
+        setActivePageId(null);
       }
     } catch (e) {
       console.error('fetchPages error:', e);
@@ -362,6 +371,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return project;
   }, [showToast]);
 
+  const deleteProject = useCallback((id: string) => {
+    setProjects(prev => prev.filter(p => p.id !== id));
+    // Clear associations
+    setPageProjectMap(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(pageId => {
+        if (next[pageId] === id) delete next[pageId];
+      });
+      return next;
+    });
+    showToast('Project deleted', 'info');
+  }, [showToast]);
+
   const updateProject = useCallback((id: string, data: Partial<DashyProject>) => {
     setProjects(prev => prev.map(project => (
       project.id === id ? { ...project, ...data } : project
@@ -392,7 +414,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       user, loading,
       pages, activePageId, setActivePageId,
       createPage, updatePage, softDeletePage, restorePage, permanentlyDeletePage,
-      projects, pageProjectMap, createProject, updateProject, assignPageToProject, getPageProject,
+      projects, pageProjectMap, createProject, updateProject, deleteProject, assignPageToProject, getPageProject,
       blocks, setBlocks,
       settings, updateSettings,
       isSidebarOpen, toggleSidebar,

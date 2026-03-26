@@ -6,6 +6,8 @@ import ToastContainer from './ui/ToastContainer';
 import SearchModal from './modals/SearchModal';
 import SettingsModal from './modals/SettingsModal';
 import TrashModal from './modals/TrashModal';
+import ShortcutsModal from './modals/ShortcutsModal';
+import ShareModal from './modals/ShareModal';
 import { useGlobalShortcuts } from '../hooks/useKeyboardShortcuts';
 import Spinner from './ui/Spinner';
 
@@ -56,6 +58,12 @@ function AppInner() {
       <SearchModal isOpen={activeModal === 'search'} onClose={closeModal} />
       <SettingsModal isOpen={activeModal === 'settings'} onClose={closeModal} />
       <TrashModal isOpen={activeModal === 'trash'} onClose={closeModal} />
+      <ShortcutsModal isOpen={activeModal === 'shortcuts'} onClose={closeModal} />
+      <ShareModal
+        page={activePage}
+        isOpen={activeModal === 'share'}
+        onClose={closeModal}
+      />
     </div>
   );
 }

@@ -11,22 +11,31 @@ import {
   FolderPlus,
   ChevronRight,
   FolderOpen,
+  MoreHorizontal,
+  Edit2,
+  LayoutDashboard,
 } from 'lucide-react';
+import { ContextMenu } from '../ui/ContextMenu';
 import { motion, AnimatePresence } from 'framer-motion';
 import { account } from '../../lib/appwrite';
 import { useApp } from '../../context/AppContext';
 import { SidebarItemContainer } from './SidebarItem';
 import Tooltip from '../ui/Tooltip';
 import { DashyPage, DashyProject } from '../../types';
+import ConfirmationModal from '../modals/ConfirmationModal';
 
 interface ProjectGroupProps {
   project: DashyProject;
   pages: DashyPage[];
   allProjectPages: DashyPage[];
   onCreatePage: (projectId: string) => void;
+  onUpdateProject: (id: string, data: Partial<DashyProject>) => void;
+  onDeleteProject: (id: string) => void;
 }
 
-function ProjectGroup({ project, pages, allProjectPages, onCreatePage }: ProjectGroupProps) {
+function ProjectGroup({ 
+  project, pages, allProjectPages, onCreatePage, onUpdateProject, onDeleteProject 
+}: ProjectGroupProps) {
   const [expanded, setExpanded] = useState(true);
   const hasPages = pages.length > 0;
 
@@ -39,7 +48,6 @@ function ProjectGroup({ project, pages, allProjectPages, onCreatePage }: Project
             setExpanded(value => !value);
             return;
           }
-
           onCreatePage(project.id);
         }}
       >
@@ -60,16 +68,40 @@ function ProjectGroup({ project, pages, allProjectPages, onCreatePage }: Project
 
         <span className="sidebar-project-title">{project.name}</span>
 
-        <button
-          className="sidebar-icon-btn"
-          onClick={event => {
-            event.stopPropagation();
-            onCreatePage(project.id);
-          }}
-          title={`Add page to ${project.name}`}
-        >
-          <Plus size={14} />
-        </button>
+        <div className="sidebar-project-actions" onClick={e => e.stopPropagation()}>
+          <button
+            className="sidebar-icon-btn"
+            onClick={event => {
+              event.stopPropagation();
+              onCreatePage(project.id);
+            }}
+            title={`Add page to ${project.name}`}
+          >
+            <Plus size={14} />
+          </button>
+          
+          <ContextMenu 
+            trigger={<MoreHorizontal size={14} className="visible" />} 
+            triggerClassName="sidebar-icon-btn project-more-btn"
+            items={[
+              {
+                label: 'Rename project',
+                icon: <Edit2 size={14} />,
+                onClick: () => {
+                  const newName = prompt('Rename Project:', project.name);
+                  if (newName) onUpdateProject(project.id, { name: newName });
+                },
+              },
+              { label: '', separator: true, onClick: () => {} },
+              {
+                label: 'Delete project',
+                icon: <Trash2 size={14} />,
+                onClick: () => onDeleteProject(project.id),
+                danger: true,
+              },
+            ]}
+          />
+        </div>
       </div>
 
       <AnimatePresence initial={false}>
@@ -113,11 +145,16 @@ export default function Sidebar() {
     pageProjectMap,
     createPage,
     createProject,
+    updateProject,
+    deleteProject,
     openModal,
     isSidebarOpen,
     toggleSidebar,
+    activePageId,
+    setActivePageId,
   } = useApp();
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sidebarWidth, setSidebarWidth] = useState(260);
   const isResizing = useRef(false);
@@ -141,6 +178,10 @@ export default function Sidebar() {
   const handleCreateProjectPage = useCallback((projectId: string) => {
     void createPage({ projectId });
   }, [createPage]);
+
+  const handleDeleteTrigger = useCallback((id: string) => {
+    setConfirmDeleteId(id);
+  }, []);
 
   // ─── Sidebar resize ─────────────────────────────────────────────────────
   const onResizeMouseDown = useCallback((e: React.MouseEvent) => {
@@ -172,7 +213,6 @@ export default function Sidebar() {
     };
   }, []);
 
-  // ─── Filter pages by search ─────────────────────────────────────────────
   const query = search.trim().toLowerCase();
   const filteredPages = query
     ? pages.filter(page => page.title?.toLowerCase().includes(query))
@@ -267,6 +307,16 @@ export default function Sidebar() {
       </div>
 
       <div className="sidebar-pages">
+        <div className="sidebar-section">
+          <button 
+            className={`sidebar-dashboard-btn ${activePageId === null ? 'active' : ''}`}
+            onClick={() => setActivePageId(null)}
+          >
+            <LayoutDashboard size={15} />
+            <span>Dashboard</span>
+          </button>
+        </div>
+
         {favoritePages.length > 0 && (
           <div className="sidebar-section">
             <div className="sidebar-section-title">
@@ -306,6 +356,8 @@ export default function Sidebar() {
                   pages={rootProjectPages}
                   allProjectPages={allProjectPages}
                   onCreatePage={handleCreateProjectPage}
+                  onUpdateProject={updateProject}
+                  onDeleteProject={handleDeleteTrigger}
                 />
               ))}
             </div>
@@ -313,7 +365,12 @@ export default function Sidebar() {
         </div>
 
         <div className="sidebar-section">
-          <div className="sidebar-section-title">PAGES</div>
+          <div className="sidebar-section-head">
+            <div className="sidebar-section-title">PAGES</div>
+            <button className="sidebar-section-action" onClick={() => { void createPage(); }}>
+              <Plus size={12} /> New
+            </button>
+          </div>
 
           {standalonePages.length === 0 ? (
             <div className="sidebar-empty">
@@ -362,6 +419,19 @@ export default function Sidebar() {
       </div>
 
       <div className="sidebar-resize-handle" onMouseDown={onResizeMouseDown} />
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={!!confirmDeleteId}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={() => {
+          if (confirmDeleteId) deleteProject(confirmDeleteId);
+        }}
+        title="Delete project"
+        message={`Are you sure you want to delete this project? Pages inside will remain as standalone items.`}
+        confirmLabel="Delete"
+        isDanger
+      />
     </motion.aside>
   );
 }

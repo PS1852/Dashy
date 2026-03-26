@@ -6,6 +6,7 @@ import { useBlocks } from '../../hooks/useBlocks';
 import { DashyPage } from '../../types';
 import BlockEditor from '../editor/BlockEditor';
 import PageHeader from './PageHeader';
+import Dashboard from './Dashboard';
 import { SaveStatus } from '../../types';
 import { exportAsMarkdown, exportAsPlainText, downloadFile } from '../../utils/exportUtils';
 import { relativeTime } from '../../utils/dateUtils';
@@ -32,7 +33,7 @@ interface WorkspaceProps {
 }
 
 export default function Workspace({ page, onUpdatePage }: WorkspaceProps) {
-  const { isSidebarOpen, toggleSidebar, openModal, user, createPage, getPageProject } = useApp();
+  const { isSidebarOpen, toggleSidebar, openModal, user, getPageProject } = useApp();
   const {
     blocks, loading, saveStatus,
     addBlock, updateBlock, deleteBlock, changeBlockType,
@@ -50,21 +51,7 @@ export default function Workspace({ page, onUpdatePage }: WorkspaceProps) {
   }, [page?.title, page?.icon]);
 
   if (!page) {
-    return (
-      <main className="workspace empty">
-        <div className="empty-state">
-          <div className="empty-icon">✨</div>
-          <h2>Welcome to Dashy</h2>
-          <p>Select a page from the sidebar, or create a new one to start writing.</p>
-          <button
-            className="empty-create-btn"
-            onClick={() => { void createPage(); }}
-          >
-            + Create a page
-          </button>
-        </div>
-      </main>
-    );
+    return <Dashboard />;
   }
 
   return (
