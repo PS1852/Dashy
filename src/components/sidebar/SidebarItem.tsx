@@ -73,7 +73,7 @@ export default function SidebarItem({
       label: 'Duplicate',
       icon: <Copy size={14} />,
       onClick: async () => {
-        const projectId = getPageProject(page.$id)?.id ?? null;
+        const projectId = getPageProject(page.$id)?.$id ?? null;
         const newPage = await createPage({
           parentId: page.parent_id ?? undefined,
           projectId,

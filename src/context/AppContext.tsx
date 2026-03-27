@@ -66,6 +66,23 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | null>(null);
+const DEFAULT_PROJECT_ICON = '📁';
+const DEFAULT_PROJECT_COLOR = '#615e57';
+
+function normalizeProject(project: DashyProject): DashyProject {
+  return {
+    ...project,
+    icon: project.icon || DEFAULT_PROJECT_ICON,
+    color: project.color || DEFAULT_PROJECT_COLOR,
+  };
+}
+
+function shouldRetryProjectCreate(error: any) {
+  if (error?.code !== 400) return false;
+
+  const message = String(error?.message ?? '');
+  return /invalid document structure|unknown attribute|attribute not found|icon|color/i.test(message);
+}
 
 export function useApp() {
   const ctx = useContext(AppContext);
@@ -176,7 +193,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         Query.orderAsc('sort_order'),
         Query.limit(100),
       ]);
-      setProjects(res.documents);
+      setProjects(res.documents.map(normalizeProject));
     } catch (e) {
       console.error('fetchProjects error:', e);
     }
@@ -356,23 +373,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const createProject = useCallback(async (name = 'New project') => {
     if (!user) return null;
+
+    const trimmedName = name.trim() || 'New project';
+    const nextOrder = projects.reduce((max, project) => Math.max(max, project.sort_order ?? 0), 0) + 1;
+    const basePayload = {
+      name: trimmedName,
+      userId: user.$id,
+      sort_order: nextOrder,
+    };
+
+    const storeProject = (project: DashyProject) => {
+      const normalizedProject = normalizeProject(project);
+      setProjects(prev => [...prev, normalizedProject]);
+      showToast(`Created "${normalizedProject.name}"`, 'success');
+      return normalizedProject;
+    };
+
     try {
       const project = await databases.createDocument<DashyProject>(DB_ID, COLLECTION_ID_PROJECTS, ID.unique(), {
-        name,
-        userId: user.$id,
-        icon: '📁',
-        color: '#615e57',
-        sort_order: projects.length + 1,
+        ...basePayload,
+        icon: DEFAULT_PROJECT_ICON,
+        color: DEFAULT_PROJECT_COLOR,
       });
-      setProjects(prev => [...prev, project]);
-      showToast(`Created "${project.name}"`, 'success');
-      return project;
+      return storeProject(project);
     } catch (error) {
       console.error('Project Create Error:', error);
+
+      if (shouldRetryProjectCreate(error)) {
+        try {
+          const project = await databases.createDocument<DashyProject>(DB_ID, COLLECTION_ID_PROJECTS, ID.unique(), basePayload);
+          return storeProject(project);
+        } catch (retryError) {
+          console.error('Project Create Retry Error:', retryError);
+        }
+      }
+
       showToast('Failed to create project', 'error');
       return null;
     }
-  }, [user, projects.length, showToast]);
+  }, [user, projects, showToast]);
 
   const deleteProject = useCallback(async (id: string) => {
     if (!user) return;

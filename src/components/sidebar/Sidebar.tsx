@@ -117,7 +117,7 @@ function ProjectGroup({
             {pages.length === 0 ? (
               <button
                 className="sidebar-project-empty"
-                onClick={() => onCreatePage(project.id)}
+                onClick={() => onCreatePage(project.$id)}
               >
                 <Plus size={12} /> Create first page
               </button>
@@ -184,7 +184,7 @@ export default function Sidebar() {
   }, []);
 
   const handleDeleteProjectTrigger = useCallback((id: string) => {
-    const project = projects.find(p => p.id === id);
+    const project = projects.find(p => p.$id === id);
     setConfirmDeleteId(id);
     setConfirmDeleteType('project');
     setConfirmDeleteTitle(project?.name || 'Project');
@@ -237,9 +237,9 @@ export default function Sidebar() {
   const standalonePages = filteredPages.filter(page => !page.parent_id && !pageProjectMap[page.$id]);
   const projectGroups = projects
     .map(project => {
-      const allProjectPages = pages.filter(page => pageProjectMap[page.$id] === project.id);
+      const allProjectPages = pages.filter(page => pageProjectMap[page.$id] === project.$id);
       const rootProjectPages = filteredPages.filter(page => (
-        pageProjectMap[page.$id] === project.id && !page.parent_id
+        pageProjectMap[page.$id] === project.$id && !page.parent_id
       ));
       const matchesProject = project.name.toLowerCase().includes(query);
 
@@ -373,7 +373,7 @@ export default function Sidebar() {
             <div className="sidebar-project-list">
               {projectGroups.map(({ project, allProjectPages, rootProjectPages }) => (
                 <ProjectGroup
-                  key={project.id}
+                  key={project.$id}
                   project={project}
                   pages={rootProjectPages}
                   allProjectPages={allProjectPages}
