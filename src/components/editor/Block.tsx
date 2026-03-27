@@ -4,7 +4,7 @@ import { GripVertical, MoreHorizontal } from 'lucide-react';
 import { Block, BlockType } from '../../types';
 import {
   ParagraphBlock, HeadingBlock, TodoBlock, BulletedListBlock,
-  NumberedListBlock, QuoteBlock, CalloutBlock, CodeBlock, DividerBlock, ToggleBlock, ImageBlock
+  NumberedListBlock, QuoteBlock, CalloutBlock, CodeBlock, DividerBlock, ToggleBlock, ImageBlock, FileBlock
 } from './blocks/BlockComponents';
 import BlockMenu from './BlockMenu';
 import { ContextMenu } from '../ui/ContextMenu';
@@ -76,13 +76,9 @@ export default function BlockEditorBlock({
       onClick: onDelete,
       danger: true,
     },
-    {
-      label: 'Duplicate',
-      onClick: () => {}, // handled by parent
-    },
-    ...(['paragraph', 'heading_1', 'heading_2', 'heading_3', 'bulleted_list', 'numbered_list', 'todo', 'quote', 'callout', 'code'] as BlockType[])
+    ...(['paragraph', 'heading_1', 'heading_2', 'heading_3', 'bulleted_list', 'numbered_list', 'todo', 'quote', 'callout', 'code', 'file'] as BlockType[])
       .filter(t => t !== block.type)
-      .slice(0, 4)
+      .slice(0, 5)
       .map(t => ({
         label: `Turn into ${t.replace(/_/g, ' ')}`,
         onClick: () => onTypeChange(t),
@@ -105,6 +101,7 @@ export default function BlockEditorBlock({
       case 'divider':      return <DividerBlock block={block} onKeyDown={onKeyDown} />;
       case 'toggle':       return <ToggleBlock {...commonProps} />;
       case 'image':        return <ImageBlock {...commonProps} />;
+      case 'file':         return <FileBlock {...commonProps} />;
       default:             return <ParagraphBlock {...commonProps} />;
     }
   };

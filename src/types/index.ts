@@ -16,6 +16,7 @@ export type BlockType =
   | 'code'
   | 'divider'
   | 'image'
+  | 'file'
   | 'page_link';
 
 export interface DashyPage extends Models.Document {
@@ -25,6 +26,7 @@ export interface DashyPage extends Models.Document {
   icon?: string;
   cover_url?: string;
   parent_id?: string;
+  project_id?: string;
   is_favorite?: boolean;
   is_deleted?: boolean;
   deleted_at?: string;
@@ -34,15 +36,13 @@ export interface DashyPage extends Models.Document {
   template_id?: string;
 }
 
-export interface DashyProject {
-  id: string;
+export interface DashyProject extends Models.Document {
   name: string;
+  userId: string;
   icon?: string;
   color?: string;
-  createdAt: string;
+  sort_order?: number;
 }
-
-export type PageProjectMap = Record<string, string>;
 
 export interface Block extends Models.Document {
   page_id: string;

@@ -1,7 +1,8 @@
 import { useRef, useEffect, useState, KeyboardEvent, CSSProperties, RefObject, ChangeEvent } from 'react';
-import { Loader2, UploadCloud } from 'lucide-react';
+import { Loader2, UploadCloud, FileText, Download } from 'lucide-react';
 import { storage, STORAGE_BUCKET_IMAGES, ID } from '../../../lib/appwrite';
 import { Block, BlockType } from '../../../types';
+import { useApp } from '../../../context/AppContext';
 
 interface BlockProps {
   block: Block;
@@ -102,7 +103,7 @@ export function TodoBlock({ block, isFocused, onFocus, onChange, onKeyDown, onCh
       >
         {block.checked && (
           <svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" width="10" height="10">
-            <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         )}
       </button>
@@ -259,7 +260,7 @@ export function DividerBlock({ onKeyDown, block }: Partial<BlockProps> & { block
   return (
     <div
       className="block-divider"
-      onClick={() => {}}
+      onClick={() => { }}
       tabIndex={0}
       onKeyDown={e => onKeyDown?.(e as any, block.$id)}
     >
@@ -303,59 +304,84 @@ export function ToggleBlock({ block, isFocused, onFocus, onChange, onKeyDown }: 
 }
 
 export function ImageBlock({ block, onChange, onKeyDown }: BlockProps) {
+  const { showToast } = useApp();
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setUploading(true);
     try {
       const res = await storage.createFile(STORAGE_BUCKET_IMAGES, ID.unique(), file);
-      // Use getFilePreview which is more reliable for immediate rendering
       const url = storage.getFilePreview(STORAGE_BUCKET_IMAGES, res.$id, 1000).toString();
       onChange(url);
-    } catch (err) {
-      console.error('Upload failed:', err);
+      showToast('Image uploaded successfully', 'success');
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      showToast('Upload failed: ' + (error.message || 'Unknown error'), 'error');
     } finally {
       setUploading(false);
     }
   };
 
-  const hasImage = !!block.content && (block.content.startsWith('http') || block.content.startsWith('blob'));
+  const hasImage = !!block.content && (block.content.startsWith('http') || block.content.startsWith('blob') || block.content.startsWith('data:'));
 
   return (
-    <div 
-      className="block-image" 
-      onClick={() => fileInputRef.current?.click()}
-      onKeyDown={e => onKeyDown(e as any, block.$id)}
-      tabIndex={0}
-    >
-      <input 
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={handleFileChange}
-      />
-
-      {uploading && (
-        <div className="image-uploading">
-          <Loader2 className="spin" size={24} />
-        </div>
-      )}
-
+    <div className="block-image" onClick={() => fileInputRef.current?.click()} onKeyDown={e => onKeyDown(e as any, block.$id)} tabIndex={0}>
+      <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
+      {uploading && <div className="image-uploading"><Loader2 className="spin" size={24} /></div>}
       {hasImage ? (
-        <img 
-          src={block.content} 
-          alt="User uploaded content" 
-          className={`image-img ${uploading ? 'loading' : ''}`}
-        />
+        <img src={block.content} alt="Uploaded" className={`image-img ${uploading ? 'loading' : ''}`} />
       ) : (
         <div className="image-placeholder">
-          <UploadCloud className="image-placeholder-icon" size={32} />
-          <p className="image-placeholder-text">Click to upload image</p>
+          <UploadCloud size={32} />
+          <p>Click to upload image</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function FileBlock({ block, onChange, onKeyDown }: BlockProps) {
+  const { showToast } = useApp();
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const res = await storage.createFile(STORAGE_BUCKET_IMAGES, ID.unique(), file);
+      const url = storage.getFilePreview(STORAGE_BUCKET_IMAGES, res.$id).toString();
+      onChange(url);
+      showToast('File uploaded successfully', 'success');
+    } catch (error: any) {
+      console.error('File upload error:', error);
+      showToast('Upload failed: ' + (error.message || 'Unknown error'), 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const hasFile = !!block.content && (block.content.startsWith('http') || block.content.startsWith('blob'));
+
+  return (
+    <div className="block-file" onClick={() => fileInputRef.current?.click()} onKeyDown={e => onKeyDown(e as any, block.$id)} tabIndex={0}>
+      <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileChange} />
+      {hasFile ? (
+        <div className="file-attachment">
+          <FileText size={20} />
+          <div className="file-info">
+            <span className="file-name">Attached file</span>
+          </div>
+          <Download size={16} />
+        </div>
+      ) : (
+        <div className="file-placeholder">
+          {uploading ? <Loader2 className="spin" size={24} /> : <UploadCloud size={32} />}
+          <p>{uploading ? 'Uploading...' : 'Click to upload file'}</p>
         </div>
       )}
     </div>

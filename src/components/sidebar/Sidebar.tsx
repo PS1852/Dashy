@@ -5,7 +5,6 @@ import {
   Settings,
   Trash2,
   Star,
-  HelpCircle,
   LogOut,
   PanelLeftClose,
   FolderPlus,
@@ -14,6 +13,7 @@ import {
   MoreHorizontal,
   Edit2,
   LayoutDashboard,
+  Command,
 } from 'lucide-react';
 import { ContextMenu } from '../ui/ContextMenu';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,10 +31,11 @@ interface ProjectGroupProps {
   onCreatePage: (projectId: string) => void;
   onUpdateProject: (id: string, data: Partial<DashyProject>) => void;
   onDeleteProject: (id: string) => void;
+  onDeletePage: (id: string, title?: string) => void;
 }
 
 function ProjectGroup({ 
-  project, pages, allProjectPages, onCreatePage, onUpdateProject, onDeleteProject 
+  project, pages, allProjectPages, onCreatePage, onUpdateProject, onDeleteProject, onDeletePage 
 }: ProjectGroupProps) {
   const [expanded, setExpanded] = useState(true);
   const hasPages = pages.length > 0;
@@ -48,7 +49,7 @@ function ProjectGroup({
             setExpanded(value => !value);
             return;
           }
-          onCreatePage(project.id);
+          onCreatePage(project.$id);
         }}
       >
         <span className={`sidebar-project-chevron ${hasPages ? 'visible' : ''}`}>
@@ -73,7 +74,7 @@ function ProjectGroup({
             className="sidebar-icon-btn"
             onClick={event => {
               event.stopPropagation();
-              onCreatePage(project.id);
+              onCreatePage(project.$id);
             }}
             title={`Add page to ${project.name}`}
           >
@@ -89,14 +90,14 @@ function ProjectGroup({
                 icon: <Edit2 size={14} />,
                 onClick: () => {
                   const newName = prompt('Rename Project:', project.name);
-                  if (newName) onUpdateProject(project.id, { name: newName });
+                  if (newName) onUpdateProject(project.$id, { name: newName });
                 },
               },
               { label: '', separator: true, onClick: () => {} },
               {
                 label: 'Delete project',
                 icon: <Trash2 size={14} />,
-                onClick: () => onDeleteProject(project.id),
+                onClick: () => onDeleteProject(project.$id),
                 danger: true,
               },
             ]}
@@ -127,6 +128,7 @@ function ProjectGroup({
                   page={page}
                   depth={1}
                   allPages={allProjectPages}
+                  onDelete={onDeletePage}
                 />
               ))
             )}
@@ -139,24 +141,18 @@ function ProjectGroup({
 
 export default function Sidebar() {
   const {
-    user,
-    pages,
-    projects,
-    pageProjectMap,
-    createPage,
-    createProject,
-    updateProject,
-    deleteProject,
-    openModal,
-    isSidebarOpen,
-    toggleSidebar,
-    activePageId,
-    setActivePageId,
+    user, pages, projects, pageProjectMap,
+    createPage, createProject, updateProject, deleteProject, softDeletePage,
+    openModal, isSidebarOpen, toggleSidebar,
+    activePageId, setActivePageId,
   } = useApp();
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmDeleteType, setConfirmDeleteType] = useState<'page' | 'project' | null>(null);
+  const [confirmDeleteTitle, setConfirmDeleteTitle] = useState('');
   const [search, setSearch] = useState('');
   const [sidebarWidth, setSidebarWidth] = useState(260);
+
   const isResizing = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(260);
@@ -169,19 +165,38 @@ export default function Sidebar() {
   const handleCreateProject = useCallback(async () => {
     const nextProjectNumber = projects.length + 1;
     const project = await createProject(`Project ${nextProjectNumber}`);
-    await createPage({
-      projectId: project.id,
-      title: `${project.name} home`,
-    });
+    if (project) {
+      await createPage({
+        projectId: project.$id,
+        title: `${project.name} home`,
+      });
+    }
   }, [createPage, createProject, projects.length]);
 
   const handleCreateProjectPage = useCallback((projectId: string) => {
     void createPage({ projectId });
   }, [createPage]);
 
-  const handleDeleteTrigger = useCallback((id: string) => {
+  const handleDeletePageTrigger = useCallback((id: string, title?: string) => {
     setConfirmDeleteId(id);
+    setConfirmDeleteType('page');
+    setConfirmDeleteTitle(title || 'Untitled');
   }, []);
+
+  const handleDeleteProjectTrigger = useCallback((id: string) => {
+    const project = projects.find(p => p.id === id);
+    setConfirmDeleteId(id);
+    setConfirmDeleteType('project');
+    setConfirmDeleteTitle(project?.name || 'Project');
+  }, [projects]);
+
+  const handleConfirmDelete = () => {
+    if (!confirmDeleteId || !confirmDeleteType) return;
+    if (confirmDeleteType === 'page') softDeletePage(confirmDeleteId);
+    else deleteProject(confirmDeleteId);
+    setConfirmDeleteId(null);
+    setConfirmDeleteType(null);
+  };
 
   // ─── Sidebar resize ─────────────────────────────────────────────────────
   const onResizeMouseDown = useCallback((e: React.MouseEvent) => {
@@ -280,7 +295,7 @@ export default function Sidebar() {
         <button className="sidebar-quick-btn" onClick={() => openModal('search')}>
           <Search size={15} />
           <span>Search</span>
-          <kbd>⌘K</kbd>
+          <kbd>Ctrl+K</kbd>
         </button>
 
         <Tooltip content="New page (⌘N)">
@@ -289,7 +304,7 @@ export default function Sidebar() {
           </button>
         </Tooltip>
 
-        <Tooltip content="New project">
+        <Tooltip content="New project (⌘P)">
           <button className="sidebar-quick-btn sidebar-quick-new" onClick={() => { void handleCreateProject(); }}>
             <FolderPlus size={15} />
           </button>
@@ -314,6 +329,7 @@ export default function Sidebar() {
           >
             <LayoutDashboard size={15} />
             <span>Dashboard</span>
+            <kbd>Ctrl+\</kbd>
           </button>
         </div>
 
@@ -323,7 +339,13 @@ export default function Sidebar() {
               <Star size={11} /> FAVORITES
             </div>
             {favoritePages.map(page => (
-              <SidebarItemContainer key={page.$id} page={page} depth={0} allPages={pages} />
+              <SidebarItemContainer 
+                key={page.$id} 
+                page={page} 
+                depth={0} 
+                allPages={pages} 
+                onDelete={handleDeletePageTrigger}
+              />
             ))}
           </div>
         )}
@@ -357,7 +379,8 @@ export default function Sidebar() {
                   allProjectPages={allProjectPages}
                   onCreatePage={handleCreateProjectPage}
                   onUpdateProject={updateProject}
-                  onDeleteProject={handleDeleteTrigger}
+                  onDeleteProject={handleDeleteProjectTrigger}
+                  onDeletePage={handleDeletePageTrigger}
                 />
               ))}
             </div>
@@ -388,7 +411,13 @@ export default function Sidebar() {
               }}
             >
               {standalonePages.map(page => (
-                <SidebarItemContainer key={page.$id} page={page} depth={0} allPages={pages} />
+                <SidebarItemContainer 
+                  key={page.$id} 
+                  page={page} 
+                  depth={0} 
+                  allPages={pages} 
+                  onDelete={handleDeletePageTrigger}
+                />
               ))}
             </motion.div>
           )}
@@ -408,7 +437,7 @@ export default function Sidebar() {
         </Tooltip>
         <Tooltip content="Keyboard shortcuts (?)">
           <button className="sidebar-footer-btn" onClick={() => openModal('shortcuts')}>
-            <HelpCircle size={16} />
+            <Command size={16} /> <span>Keyboard shortcuts</span>
           </button>
         </Tooltip>
         <Tooltip content="Sign out">
@@ -423,12 +452,13 @@ export default function Sidebar() {
       {/* Confirmation Modal */}
       <ConfirmationModal
         isOpen={!!confirmDeleteId}
-        onClose={() => setConfirmDeleteId(null)}
-        onConfirm={() => {
-          if (confirmDeleteId) deleteProject(confirmDeleteId);
-        }}
-        title="Delete project"
-        message={`Are you sure you want to delete this project? Pages inside will remain as standalone items.`}
+        onClose={() => { setConfirmDeleteId(null); setConfirmDeleteType(null); }}
+        onConfirm={handleConfirmDelete}
+        title={`Delete ${confirmDeleteType}`}
+        message={confirmDeleteType === 'page' 
+          ? `Are you sure you want to move "${confirmDeleteTitle}" to trash?`
+          : `Are you sure you want to delete project "${confirmDeleteTitle}"? All pages inside will also be moved to trash.`
+        }
         confirmLabel="Delete"
         isDanger
       />

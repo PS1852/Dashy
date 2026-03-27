@@ -14,6 +14,7 @@ interface SidebarItemProps {
   allPages: DashyPage[];
   isActive: boolean;
   onSelect: () => void;
+  onDelete: (id: string, title?: string) => void;
   onExpand?: () => void;
   isExpanded?: boolean;
 }
@@ -24,10 +25,11 @@ export default function SidebarItem({
   allPages,
   isActive,
   onSelect,
+  onDelete,
   onExpand,
   isExpanded = false,
 }: SidebarItemProps) {
-  const { updatePage, softDeletePage, createPage, showToast, getPageProject } = useApp();
+  const { updatePage, createPage, showToast, getPageProject } = useApp();
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(page.title);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -98,7 +100,7 @@ export default function SidebarItem({
     {
       label: 'Move to trash',
       icon: <Trash2 size={14} />,
-      onClick: () => softDeletePage(page.$id),
+      onClick: () => onDelete(page.$id, page.title),
       danger: true,
     },
   ];
@@ -186,6 +188,7 @@ export default function SidebarItem({
                 page={child}
                 depth={depth + 1}
                 allPages={allPages}
+                onDelete={onDelete}
               />
             ))}
           </motion.div>
@@ -196,7 +199,7 @@ export default function SidebarItem({
 }
 
 // Container that holds expand state
-export function SidebarItemContainer({ page, depth, allPages }: { page: DashyPage; depth: number; allPages: DashyPage[] }) {
+export function SidebarItemContainer({ page, depth, allPages, onDelete }: { page: DashyPage; depth: number; allPages: DashyPage[]; onDelete: (id: string, title?: string) => void }) {
   const { activePageId, setActivePageId } = useApp();
   const [expanded, setExpanded] = useState(false);
 
@@ -207,6 +210,7 @@ export function SidebarItemContainer({ page, depth, allPages }: { page: DashyPag
       allPages={allPages}
       isActive={activePageId === page.$id}
       onSelect={() => setActivePageId(page.$id)}
+      onDelete={onDelete}
       onExpand={() => setExpanded(v => !v)}
       isExpanded={expanded}
     />

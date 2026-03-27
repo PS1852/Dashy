@@ -11,21 +11,24 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
     {
       title: 'Navigation & UI',
       items: [
-        { keys: ['⌘', 'K'], label: 'Global search' },
-        { keys: ['⌘', 'N'], label: 'New page' },
-        { keys: ['⌘', '\\'], label: 'Toggle sidebar' },
+        { keys: ['Ctrl', 'K'], label: 'Global search' },
+        { keys: ['Ctrl', 'N'], label: 'New page' },
+        { keys: ['Ctrl', 'P'], label: 'New project' },
+        { keys: ['Ctrl', '\\'], label: 'Toggle sidebar' },
+        { keys: ['/'], label: 'Search (Quick)' },
+        { keys: ['Shift', '?'], label: 'Show shortcuts' },
         { keys: ['Esc'], label: 'Close modal / Dismiss focus' },
       ]
     },
     {
       title: 'Editor Commands',
       items: [
-        { keys: ['/'], label: 'Open command menu' },
+        { keys: ['/'], label: 'Open slash command menu' },
         { keys: ['Enter'], label: 'Create new block' },
-        { keys: ['Shift', 'Enter'], label: 'Line break (within block)' },
-        { keys: ['Backspace'], label: 'Delete empty block / Merge blocks' },
-        { keys: ['Tab'], label: 'Indent block' },
-        { keys: ['Shift', 'Tab'], label: 'Outdent block' },
+        { keys: ['Shift', 'Enter'], label: 'Line break' },
+        { keys: ['Backspace'], label: 'Delete block (when empty)' },
+        { keys: ['Tab'], label: 'Indent' },
+        { keys: ['Shift', 'Tab'], label: 'Outdent' },
       ]
     },
     {

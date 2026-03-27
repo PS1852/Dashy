@@ -14,8 +14,8 @@ import {
   Toast,
   ToastType,
   DashyProject,
-  PageProjectMap,
 } from '../types';
+import { COLLECTION_ID_PROJECTS } from '../lib/appwrite';
 
 interface CreatePageOptions {
   parentId?: string;
@@ -39,11 +39,11 @@ interface AppContextType {
   permanentlyDeletePage: (id: string) => Promise<void>;
   // Projects
   projects: DashyProject[];
-  pageProjectMap: PageProjectMap;
-  createProject: (name?: string) => Promise<DashyProject>;
-  updateProject: (id: string, data: Partial<DashyProject>) => void;
-  deleteProject: (id: string) => void;
-  assignPageToProject: (pageId: string, projectId: string | null) => void;
+  pageProjectMap: Record<string, string>;
+  createProject: (name?: string) => Promise<DashyProject | null>;
+  updateProject: (id: string, data: Partial<DashyProject>) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
+  assignPageToProject: (pageId: string, projectId: string | null) => Promise<void>;
   getPageProject: (pageId?: string | null) => DashyProject | null;
   // Blocks
   blocks: Block[];
@@ -66,8 +66,6 @@ interface AppContextType {
 }
 
 const AppContext = createContext<AppContextType | null>(null);
-const PROJECTS_STORAGE_KEY = 'dashy:projects';
-const PAGE_PROJECT_MAP_STORAGE_KEY = 'dashy:page-project-map';
 
 export function useApp() {
   const ctx = useContext(AppContext);
@@ -87,7 +85,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [templates, setTemplates] = useState<DashyTemplate[]>([]);
   const [projects, setProjects] = useState<DashyProject[]>([]);
-  const [pageProjectMap, setPageProjectMap] = useState<PageProjectMap>({});
 
   // ─── Auth ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -97,6 +94,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setUser(session);
         await Promise.all([
           fetchPages(session.$id),
+          fetchProjects(session.$id),
           fetchSettings(session.$id),
           fetchTemplates(),
         ]);
@@ -109,35 +107,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     checkSession();
   }, []);
 
-  useEffect(() => {
-    if (!user) {
-      setProjects([]);
-      setPageProjectMap({});
-      return;
-    }
+  // Computed page project map from pages
+  const pageProjectMap = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    pages.forEach(p => {
+      if (p.project_id) map[p.$id] = p.project_id;
+    });
+    return map;
+  }, [pages]);
 
-    try {
-      const storedProjects = localStorage.getItem(`${PROJECTS_STORAGE_KEY}:${user.$id}`);
-      const storedProjectMap = localStorage.getItem(`${PAGE_PROJECT_MAP_STORAGE_KEY}:${user.$id}`);
-
-      setProjects(storedProjects ? JSON.parse(storedProjects) : []);
-      setPageProjectMap(storedProjectMap ? JSON.parse(storedProjectMap) : {});
-    } catch {
-      setProjects([]);
-      setPageProjectMap({});
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    localStorage.setItem(`${PROJECTS_STORAGE_KEY}:${user.$id}`, JSON.stringify(projects));
-  }, [projects, user]);
-
-  useEffect(() => {
-    if (!user) return;
-    localStorage.setItem(`${PAGE_PROJECT_MAP_STORAGE_KEY}:${user.$id}`, JSON.stringify(pageProjectMap));
-  }, [pageProjectMap, user]);
-
+  // Removed old localStorage effects for projects/pageProjectMap
+  
   // ─── Handle hash-based routing ─────────────────────────────────────────
   useEffect(() => {
     const handleHash = () => {
@@ -171,21 +151,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         Query.orderAsc('sort_order'),
         Query.limit(200),
       ]);
-      setPages(res.documents);
+      // Deduplicate by $id just in case
+      const docs = res.documents;
+      const seen = new Set();
+      const uniqueDocs = docs.filter(p => seen.has(p.$id) ? false : seen.add(p.$id));
+      setPages(uniqueDocs);
       
-      // Check hash first
       const hash = window.location.hash;
       const match = hash.match(/^#\/page\/(.+)$/);
-      if (match && res.documents.find(p => p.$id === match[1])) {
+      if (match && uniqueDocs.find(p => p.$id === match[1])) {
         setActivePageId(match[1]);
-      } else if (hash.includes('dashboard')) {
-        setActivePageId(null);
-      } else {
-        // Default to dashboard on every refresh
+      } else if (!match) {
         setActivePageId(null);
       }
     } catch (e) {
       console.error('fetchPages error:', e);
+    }
+  }, []);
+
+  const fetchProjects = useCallback(async (userId: string) => {
+    try {
+      const res = await databases.listDocuments<DashyProject>(DB_ID, COLLECTION_ID_PROJECTS, [
+        Query.equal('userId', userId),
+        Query.orderAsc('sort_order'),
+        Query.limit(100),
+      ]);
+      setProjects(res.documents);
+    } catch (e) {
+      console.error('fetchProjects error:', e);
     }
   }, []);
 
@@ -194,7 +187,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const parentId = options?.parentId;
     const resolvedProjectId = options?.projectId ?? (parentId ? pageProjectMap[parentId] ?? null : null);
-    // Optimistic: calculate sort_order
     const maxOrder = pages.reduce((m, p) => Math.max(m, p.sort_order ?? 0), 0);
     try {
       const newPage = await databases.createDocument<DashyPage>(DB_ID, COLLECTION_ID_PAGES, ID.unique(), {
@@ -202,16 +194,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         content: '',
         userId: user.$id,
         parent_id: parentId ?? null,
+        project_id: resolvedProjectId ?? null,
         is_deleted: false,
         is_favorite: false,
         sort_order: maxOrder + 1,
         icon: '',
         cover_url: '',
       });
-      setPages(prev => [...prev, newPage]);
-      if (resolvedProjectId) {
-        setPageProjectMap(prev => ({ ...prev, [newPage.$id]: resolvedProjectId }));
-      }
+      setPages((prev: DashyPage[]) => [...prev, newPage]);
       setActivePageId(newPage.$id);
       return newPage;
     } catch (e: any) {
@@ -222,7 +212,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updatePage = useCallback(async (id: string, data: Partial<DashyPage>) => {
     // Optimistic
-    setPages(prev => prev.map(p => p.$id === id ? { ...p, ...data } : p));
+    setPages((prev: DashyPage[]) => prev.map(p => p.$id === id ? { ...p, ...data } : p));
     try {
       await databases.updateDocument<DashyPage>(DB_ID, COLLECTION_ID_PAGES, id, data);
     } catch (e: any) {
@@ -233,11 +223,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const softDeletePage = useCallback(async (id: string) => {
     const page = pages.find(p => p.$id === id);
-    // Optimistic removal
-    setPages(prev => prev.filter(p => p.$id !== id && p.parent_id !== id));
+    // Optimistic removal (recursive for nested pages)
+    setPages((prev: DashyPage[]) => {
+      const idsToRemove = new Set([id]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        prev.forEach(p => {
+          if (p.parent_id && idsToRemove.has(p.parent_id) && !idsToRemove.has(p.$id)) {
+            idsToRemove.add(p.$id);
+            changed = true;
+          }
+        });
+      }
+      return prev.filter(p => !idsToRemove.has(p.$id));
+    });
     if (activePageId === id) {
-      const remaining = pages.filter(p => p.$id !== id);
-      setActivePageId(remaining.length > 0 ? remaining[0].$id : null);
+      setActivePageId(null);
     }
     try {
       await databases.updateDocument(DB_ID, COLLECTION_ID_PAGES, id, {
@@ -249,7 +251,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       showToast('Failed to delete page', 'error');
       if (user) await fetchPages(user.$id);
     }
-  }, [pages, activePageId, user]);
+  }, [pages, activePageId, user, fetchPages]);
 
   const restorePage = useCallback(async (id: string) => {
     try {
@@ -257,7 +259,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         is_deleted: false,
         deleted_at: null,
       });
-      setPages(prev => [...prev, restored]);
+      setPages((prev: DashyPage[]) => [...prev, restored]);
       showToast('Page restored', 'success');
     } catch {
       showToast('Failed to restore page', 'error');
@@ -267,11 +269,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const permanentlyDeletePage = useCallback(async (id: string) => {
     try {
       await databases.deleteDocument(DB_ID, COLLECTION_ID_PAGES, id);
-      setPageProjectMap(prev => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
       showToast('Page permanently deleted', 'success');
     } catch {
       showToast('Failed to delete page', 'error');
@@ -357,57 +354,75 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (timer) clearTimeout(timer);
   }, []);
 
-  const createProject = useCallback(async (name = 'New project'): Promise<DashyProject> => {
-    const project: DashyProject = {
-      id: ID.unique(),
-      name,
-      icon: '📁',
-      color: '#615e57',
-      createdAt: new Date().toISOString(),
-    };
-
-    setProjects(prev => [...prev, project]);
-    showToast(`Created "${project.name}"`, 'success');
-    return project;
-  }, [showToast]);
-
-  const deleteProject = useCallback((id: string) => {
-    setProjects(prev => prev.filter(p => p.id !== id));
-    // Clear associations
-    setPageProjectMap(prev => {
-      const next = { ...prev };
-      Object.keys(next).forEach(pageId => {
-        if (next[pageId] === id) delete next[pageId];
+  const createProject = useCallback(async (name = 'New project') => {
+    if (!user) return null;
+    try {
+      const project = await databases.createDocument<DashyProject>(DB_ID, COLLECTION_ID_PROJECTS, ID.unique(), {
+        name,
+        userId: user.$id,
+        icon: '📁',
+        color: '#615e57',
+        sort_order: projects.length + 1,
       });
-      return next;
-    });
-    showToast('Project deleted', 'info');
+      setProjects(prev => [...prev, project]);
+      showToast(`Created "${project.name}"`, 'success');
+      return project;
+    } catch {
+      showToast('Failed to create project', 'error');
+      return null;
+    }
+  }, [user, projects.length, showToast]);
+
+  const deleteProject = useCallback(async (id: string) => {
+    if (!user) return;
+    try {
+      // 1. Mark project pages as deleted
+      const projectPages = pages.filter(p => p.project_id === id);
+      await Promise.all(projectPages.map(p => databases.updateDocument(DB_ID, COLLECTION_ID_PAGES, p.$id, {
+        is_deleted: true,
+        deleted_at: new Date().toISOString()
+      })));
+      
+      // 2. Delete project from Appwrite
+      await databases.deleteDocument(DB_ID, COLLECTION_ID_PROJECTS, id);
+      
+      setProjects((prev: DashyProject[]) => prev.filter(p => p.$id !== id));
+      setPages((prev: DashyPage[]) => prev.filter(p => p.project_id !== id));
+      
+      showToast('Project and its pages deleted', 'info');
+    } catch {
+      showToast('Failed to delete project', 'error');
+    }
+  }, [user, pages, showToast]);
+
+  const updateProject = useCallback(async (id: string, data: Partial<DashyProject>) => {
+    setProjects(prev => prev.map(project => (
+      project.$id === id ? { ...project, ...data } : project
+    )));
+    try {
+      await databases.updateDocument(DB_ID, COLLECTION_ID_PROJECTS, id, data);
+    } catch {
+      showToast('Failed to update project', 'error');
+    }
   }, [showToast]);
 
-  const updateProject = useCallback((id: string, data: Partial<DashyProject>) => {
-    setProjects(prev => prev.map(project => (
-      project.id === id ? { ...project, ...data } : project
-    )));
-  }, []);
-
-  const assignPageToProject = useCallback((pageId: string, projectId: string | null) => {
-    setPageProjectMap(prev => {
-      if (!projectId) {
-        const next = { ...prev };
-        delete next[pageId];
-        return next;
-      }
-
-      return { ...prev, [pageId]: projectId };
-    });
-  }, []);
+  const assignPageToProject = useCallback(async (pageId: string, projectId: string | null) => {
+    setPages(prev => prev.map(p => p.$id === pageId ? { ...p, project_id: projectId ?? undefined } : p));
+    try {
+      await databases.updateDocument(DB_ID, COLLECTION_ID_PAGES, pageId, {
+        project_id: projectId
+      });
+    } catch {
+      showToast('Failed to move page', 'error');
+    }
+  }, [showToast]);
 
   const getPageProject = useCallback((pageId?: string | null) => {
     if (!pageId) return null;
-    const projectId = pageProjectMap[pageId];
-    if (!projectId) return null;
-    return projects.find(project => project.id === projectId) ?? null;
-  }, [pageProjectMap, projects]);
+    const page = pages.find(p => p.$id === pageId);
+    if (!page?.project_id) return null;
+    return projects.find(project => project.$id === page.project_id) ?? null;
+  }, [pages, projects]);
 
   return (
     <AppContext.Provider value={{

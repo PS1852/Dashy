@@ -2,6 +2,7 @@ import { Client, Account, Databases, Storage } from 'appwrite';
 
 export const DB_ID = 'dashy-database';
 export const COLLECTION_ID_PAGES = 'pages';
+export const COLLECTION_ID_PROJECTS = 'projects';
 export const COLLECTION_ID_BLOCKS = 'blocks';
 export const COLLECTION_ID_USER_SETTINGS = 'user_settings';
 export const COLLECTION_ID_TEMPLATES = 'templates';
