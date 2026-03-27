@@ -2,8 +2,6 @@ import { Moon, Sun, Shield, FileText, User } from 'lucide-react';
 import Modal from '../ui/Modal';
 import { useApp } from '../../context/AppContext';
 import { account } from '../../lib/appwrite';
-import { TermsOfService, PrivacyPolicy } from './LegalModals';
-import { useState } from 'react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -12,8 +10,8 @@ interface SettingsModalProps {
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { user, settings, updateSettings } = useApp();
-  const [showTOS, setShowTOS] = useState(false);
-  const [showPrivacy, setShowPrivacy] = useState(false);
+  const termsUrl = `${import.meta.env.BASE_URL}terms.html`;
+  const privacyUrl = `${import.meta.env.BASE_URL}privacy.html`;
 
   const handleLogout = async () => {
     await account.deleteSession('current');
@@ -124,12 +122,12 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         <section className="settings-section">
           <h3 className="settings-section-title">Support & Legal</h3>
           <div className="legal-links">
-            <button className="legal-link-btn" onClick={() => setShowTOS(true)}>
+            <a className="legal-link-btn" href={termsUrl} target="_blank" rel="noopener noreferrer">
               <FileText size={14} /> Terms of Service
-            </button>
-            <button className="legal-link-btn" onClick={() => setShowPrivacy(true)}>
+            </a>
+            <a className="legal-link-btn" href={privacyUrl} target="_blank" rel="noopener noreferrer">
               <Shield size={14} /> Privacy Policy
-            </button>
+            </a>
           </div>
           
           <div className="founder-info">
@@ -143,9 +141,6 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             </div>
           </div>
         </section>
-
-        <TermsOfService isOpen={showTOS} onClose={() => setShowTOS(false)} />
-        <PrivacyPolicy isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
       </div>
     </Modal>
   );

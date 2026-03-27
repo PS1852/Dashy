@@ -1672,7 +1672,7 @@ kbd {
 
 /* --- Legal & Info Styles ----------------------------------------------- */
 .legal-links { display: flex; gap: 12px; margin-bottom: 20px; }
-.legal-link-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--surface-low); border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; }
+.legal-link-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: var(--surface-low); border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 13px; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; text-decoration: none; }
 .legal-link-btn:hover { background: var(--surface-high); border-color: var(--accent-primary); color: var(--accent-primary); }
 .founder-info { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: var(--bg-primary); border-radius: var(--radius-md); border: 1px solid var(--border-color); }
 .founder-tag { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
