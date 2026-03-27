@@ -314,7 +314,7 @@ export function ImageBlock({ block, onChange, onKeyDown }: BlockProps) {
     setUploading(true);
     try {
       const res = await storage.createFile(STORAGE_BUCKET_IMAGES, ID.unique(), file);
-      const url = storage.getFilePreview(STORAGE_BUCKET_IMAGES, res.$id, 1000).toString();
+      const url = `${storage.client.config.endpoint}/storage/buckets/${STORAGE_BUCKET_IMAGES}/files/${res.$id}/view?project=${storage.client.config.project}`;
       onChange(url);
       showToast('Image uploaded successfully', 'success');
     } catch (error: any) {
@@ -328,13 +328,36 @@ export function ImageBlock({ block, onChange, onKeyDown }: BlockProps) {
   const hasImage = !!block.content && (block.content.startsWith('http') || block.content.startsWith('blob') || block.content.startsWith('data:'));
 
   return (
-    <div className="block-image" onClick={() => fileInputRef.current?.click()} onKeyDown={e => onKeyDown(e as any, block.$id)} tabIndex={0}>
-      <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
+    <div
+      className="block-image"
+      onKeyDown={e => onKeyDown(e as any, block.$id)}
+      tabIndex={0}
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
       {uploading && <div className="image-uploading"><Loader2 className="spin" size={24} /></div>}
       {hasImage ? (
-        <img src={block.content} alt="Uploaded" className={`image-img ${uploading ? 'loading' : ''}`} />
+        <div className="image-img-wrap">
+          <img src={block.content} alt="Uploaded" className={`image-img ${uploading ? 'loading' : ''}`} />
+          <button
+            className="image-change-btn"
+            onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }}
+            title="Change image"
+          >
+            Change
+          </button>
+        </div>
       ) : (
-        <div className="image-placeholder">
+        <div
+          className="image-placeholder"
+          onClick={() => fileInputRef.current?.click()}
+          style={{ cursor: 'pointer' }}
+        >
           <UploadCloud size={32} />
           <p>Click to upload image</p>
         </div>

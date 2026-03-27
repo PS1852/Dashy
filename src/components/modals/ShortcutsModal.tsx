@@ -13,7 +13,7 @@ export default function ShortcutsModal({ isOpen, onClose }: ShortcutsModalProps)
       items: [
         { keys: ['Ctrl', 'K'], label: 'Global search' },
         { keys: ['Ctrl', 'N'], label: 'New page' },
-        { keys: ['Ctrl', 'P'], label: 'New project' },
+        { keys: ['Ctrl', 'Shift', 'P'], label: 'New project' },
         { keys: ['Ctrl', '\\'], label: 'Toggle sidebar' },
         { keys: ['/'], label: 'Search (Quick)' },
         { keys: ['Shift', '?'], label: 'Show shortcuts' },

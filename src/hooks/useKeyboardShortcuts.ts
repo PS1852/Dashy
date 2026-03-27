@@ -26,7 +26,9 @@ export function useKeyboardShortcuts(shortcuts: Shortcut[]) {
           const allowInEditor = shortcut.ctrl || shortcut.alt || !isEditing;
           
           if (allowInEditor) {
-            e.preventDefault();
+            if (e.cancelable) {
+              e.preventDefault();
+            }
             e.stopPropagation();
             shortcut.handler();
             return;
@@ -46,7 +48,7 @@ export function useGlobalShortcuts() {
   useKeyboardShortcuts([
     { key: 'k', ctrl: true, handler: () => activeModal === 'search' ? closeModal() : openModal('search') },
     { key: 'n', ctrl: true, handler: () => createPage() },
-    { key: 'p', ctrl: true, handler: () => createProject() },
+    { key: 'p', ctrl: true, shift: true, handler: () => createProject() },
     { key: '\\', ctrl: true, handler: () => toggleSidebar() },
     { key: 'Escape', handler: () => closeModal() },
     { key: '/', handler: () => !activeModal && openModal('search') },

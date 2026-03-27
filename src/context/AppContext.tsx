@@ -367,7 +367,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setProjects(prev => [...prev, project]);
       showToast(`Created "${project.name}"`, 'success');
       return project;
-    } catch {
+    } catch (error) {
+      console.error('Project Create Error:', error);
       showToast('Failed to create project', 'error');
       return null;
     }

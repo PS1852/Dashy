@@ -1649,6 +1649,24 @@ kbd {
 .image-uploading { position: absolute; inset: 0; background: rgba(255,255,255,0.7); display: flex; align-items: center; justify-content: center; z-index: 10; }
 .image-img { width: 100%; display: block; border-radius: var(--radius-md); transition: opacity 0.3s; }
 .image-img.loading { opacity: 0.5; }
+.image-img-wrap { position: relative; display: inline-block; width: 100%; }
+.image-img-wrap:hover .image-change-btn { opacity: 1; }
+.image-change-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  bottom: auto;
+  padding: 6px 14px;
+  font-size: 12px;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.image-change-btn:hover { background: rgba(0,0,0,0.75); }
 .sidebar-icon-btn.project-more-btn { opacity: 0.6 !important; }
 .sidebar-icon-btn.project-more-btn:hover { opacity: 1 !important; }
 
