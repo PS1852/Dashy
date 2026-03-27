@@ -36,7 +36,7 @@ export interface DashyPage extends Models.Document {
   template_id?: string;
 }
 
-export interface DashyProject extends Models.Document {
+export interface DashyProject extends Models.Row {
   name: string;
   userId: string;
   icon?: string;

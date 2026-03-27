@@ -3,7 +3,7 @@ import { Models } from 'appwrite';
 import {
   account, databases, DB_ID,
   COLLECTION_ID_PAGES, COLLECTION_ID_USER_SETTINGS, COLLECTION_ID_TEMPLATES,
-  ID, Query
+  ID, Permission, Query, Role, tablesDB
 } from '../lib/appwrite';
 import {
   DashyPage,
@@ -15,7 +15,7 @@ import {
   ToastType,
   DashyProject,
 } from '../types';
-import { COLLECTION_ID_PROJECTS } from '../lib/appwrite';
+import { TABLE_ID_PROJECTS } from '../lib/appwrite';
 
 interface CreatePageOptions {
   parentId?: string;
@@ -77,11 +77,18 @@ function normalizeProject(project: DashyProject): DashyProject {
   };
 }
 
-function shouldRetryProjectCreate(error: any) {
-  if (error?.code !== 400) return false;
-
+function getProjectAccessError(error: any) {
   const message = String(error?.message ?? '');
-  return /invalid document structure|unknown attribute|attribute not found|icon|color/i.test(message);
+
+  if (error?.code === 404 && /table|collection/i.test(message)) {
+    return 'Projects table is not accessible via the current Appwrite API. Confirm the table ID is "projects".';
+  }
+
+  if (error?.code === 401 || error?.code === 403 || /permission|authorize|access/i.test(message)) {
+    return 'Projects table permissions are blocking the client. Allow logged-in users to create and read rows in Appwrite.';
+  }
+
+  return null;
 }
 
 export function useApp() {
@@ -188,14 +195,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProjects = useCallback(async (userId: string) => {
     try {
-      const res = await databases.listDocuments<DashyProject>(DB_ID, COLLECTION_ID_PROJECTS, [
+      const res = await tablesDB.listRows<DashyProject>(DB_ID, TABLE_ID_PROJECTS, [
         Query.equal('userId', userId),
         Query.orderAsc('sort_order'),
         Query.limit(100),
       ]);
-      setProjects(res.documents.map(normalizeProject));
-    } catch (e) {
-      console.error('fetchProjects error:', e);
+      setProjects(res.rows.map(normalizeProject));
+    } catch (error) {
+      console.error('fetchProjects error:', error);
     }
   }, []);
 
@@ -210,8 +217,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         title: options?.title?.trim() || 'Untitled',
         content: '',
         userId: user.$id,
-        parent_id: parentId ?? null,
-        project_id: resolvedProjectId ?? null,
+        parent_id: parentId ?? undefined,
+        project_id: resolvedProjectId ?? undefined,
         is_deleted: false,
         is_favorite: false,
         sort_order: maxOrder + 1,
@@ -274,7 +281,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const restored = await databases.updateDocument<DashyPage>(DB_ID, COLLECTION_ID_PAGES, id, {
         is_deleted: false,
-        deleted_at: null,
+        deleted_at: null as any,
       });
       setPages((prev: DashyPage[]) => [...prev, restored]);
       showToast('Page restored', 'success');
@@ -376,11 +383,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const trimmedName = name.trim() || 'New project';
     const nextOrder = projects.reduce((max, project) => Math.max(max, project.sort_order ?? 0), 0) + 1;
-    const basePayload = {
+    const basePayload: Omit<DashyProject, keyof Models.Row> = {
       name: trimmedName,
       userId: user.$id,
       sort_order: nextOrder,
+      icon: DEFAULT_PROJECT_ICON,
+      color: DEFAULT_PROJECT_COLOR,
     };
+    const permissions = [
+      Permission.read(Role.user(user.$id)),
+      Permission.update(Role.user(user.$id)),
+      Permission.delete(Role.user(user.$id)),
+    ];
 
     const storeProject = (project: DashyProject) => {
       const normalizedProject = normalizeProject(project);
@@ -390,25 +404,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     try {
-      const project = await databases.createDocument<DashyProject>(DB_ID, COLLECTION_ID_PROJECTS, ID.unique(), {
-        ...basePayload,
-        icon: DEFAULT_PROJECT_ICON,
-        color: DEFAULT_PROJECT_COLOR,
-      });
+      const project = await tablesDB.createRow<DashyProject>(DB_ID, TABLE_ID_PROJECTS, ID.unique(), basePayload, permissions);
       return storeProject(project);
     } catch (error) {
       console.error('Project Create Error:', error);
-
-      if (shouldRetryProjectCreate(error)) {
-        try {
-          const project = await databases.createDocument<DashyProject>(DB_ID, COLLECTION_ID_PROJECTS, ID.unique(), basePayload);
-          return storeProject(project);
-        } catch (retryError) {
-          console.error('Project Create Retry Error:', retryError);
-        }
-      }
-
-      showToast('Failed to create project', 'error');
+      showToast(getProjectAccessError(error) || 'Failed to create project', 'error');
       return null;
     }
   }, [user, projects, showToast]);
@@ -424,14 +424,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       })));
       
       // 2. Delete project from Appwrite
-      await databases.deleteDocument(DB_ID, COLLECTION_ID_PROJECTS, id);
+      await tablesDB.deleteRow(DB_ID, TABLE_ID_PROJECTS, id);
       
       setProjects((prev: DashyProject[]) => prev.filter(p => p.$id !== id));
       setPages((prev: DashyPage[]) => prev.filter(p => p.project_id !== id));
       
       showToast('Project and its pages deleted', 'info');
-    } catch {
-      showToast('Failed to delete project', 'error');
+    } catch (error) {
+      console.error('Project Delete Error:', error);
+      showToast(getProjectAccessError(error) || 'Failed to delete project', 'error');
     }
   }, [user, pages, showToast]);
 
@@ -440,9 +441,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       project.$id === id ? { ...project, ...data } : project
     )));
     try {
-      await databases.updateDocument(DB_ID, COLLECTION_ID_PROJECTS, id, data);
-    } catch {
-      showToast('Failed to update project', 'error');
+      await tablesDB.updateRow<DashyProject>(DB_ID, TABLE_ID_PROJECTS, id, data);
+    } catch (error) {
+      console.error('Project Update Error:', error);
+      showToast(getProjectAccessError(error) || 'Failed to update project', 'error');
     }
   }, [showToast]);
 

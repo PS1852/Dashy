@@ -1,8 +1,8 @@
-import { Client, Account, Databases, Storage } from 'appwrite';
+import { Client, Account, Databases, Storage, TablesDB } from 'appwrite';
 
 export const DB_ID = 'dashy-database';
 export const COLLECTION_ID_PAGES = 'pages';
-export const COLLECTION_ID_PROJECTS = 'projects';
+export const TABLE_ID_PROJECTS = 'projects';
 export const COLLECTION_ID_BLOCKS = 'blocks';
 export const COLLECTION_ID_USER_SETTINGS = 'user_settings';
 export const COLLECTION_ID_TEMPLATES = 'templates';
@@ -14,5 +14,6 @@ const client = new Client()
 
 export const account = new Account(client);
 export const databases = new Databases(client);
+export const tablesDB = new TablesDB(client);
 export const storage = new Storage(client);
-export { ID, Query } from 'appwrite';
+export { ID, Permission, Query, Role } from 'appwrite';
