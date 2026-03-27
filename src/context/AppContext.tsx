@@ -15,7 +15,7 @@ import {
   ToastType,
   DashyProject,
 } from '../types';
-import { TABLE_ID_PROJECTS } from '../lib/appwrite';
+import { TABLE_ID_PROJECTS, TABLE_ID_PROJECTS_FALLBACK } from '../lib/appwrite';
 
 interface CreatePageOptions {
   parentId?: string;
@@ -68,6 +68,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | null>(null);
 const DEFAULT_PROJECT_ICON = '📁';
 const DEFAULT_PROJECT_COLOR = '#615e57';
+const PROJECT_TABLE_IDS = [TABLE_ID_PROJECTS, TABLE_ID_PROJECTS_FALLBACK];
 
 function normalizeProject(project: DashyProject): DashyProject {
   return {
@@ -81,7 +82,7 @@ function getProjectAccessError(error: any) {
   const message = String(error?.message ?? '');
 
   if (error?.code === 404 && /table|collection/i.test(message)) {
-    return 'Projects table is not accessible via the current Appwrite API. Confirm the table ID is "projects".';
+    return 'Projects table could not be found. Confirm the real Appwrite table ID in Settings.';
   }
 
   if (error?.code === 401 || error?.code === 403 || /permission|authorize|access/i.test(message)) {
@@ -89,6 +90,10 @@ function getProjectAccessError(error: any) {
   }
 
   return null;
+}
+
+function isProjectTableMissing(error: any) {
+  return error?.code === 404 && /table/i.test(String(error?.message ?? ''));
 }
 
 export function useApp() {
@@ -109,6 +114,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [templates, setTemplates] = useState<DashyTemplate[]>([]);
   const [projects, setProjects] = useState<DashyProject[]>([]);
+
+  const withProjectTableFallback = useCallback(async <T,>(operation: (tableId: string) => Promise<T>) => {
+    let lastError: any = null;
+
+    for (const tableId of PROJECT_TABLE_IDS) {
+      try {
+        return await operation(tableId);
+      } catch (error) {
+        lastError = error;
+        if (!isProjectTableMissing(error)) {
+          throw error;
+        }
+      }
+    }
+
+    throw lastError;
+  }, []);
 
   // ─── Auth ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -195,16 +217,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProjects = useCallback(async (userId: string) => {
     try {
-      const res = await tablesDB.listRows<DashyProject>(DB_ID, TABLE_ID_PROJECTS, [
-        Query.equal('userId', userId),
-        Query.orderAsc('sort_order'),
-        Query.limit(100),
-      ]);
+      const res = await withProjectTableFallback(tableId => (
+        tablesDB.listRows<DashyProject>(DB_ID, tableId, [
+          Query.equal('userId', userId),
+          Query.orderAsc('sort_order'),
+          Query.limit(100),
+        ])
+      ));
       setProjects(res.rows.map(normalizeProject));
     } catch (error) {
       console.error('fetchProjects error:', error);
     }
-  }, []);
+  }, [withProjectTableFallback]);
 
   const createPage = useCallback(async (options?: CreatePageOptions): Promise<DashyPage | null> => {
     if (!user) return null;
@@ -404,14 +428,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
 
     try {
-      const project = await tablesDB.createRow<DashyProject>(DB_ID, TABLE_ID_PROJECTS, ID.unique(), basePayload, permissions);
+      const project = await withProjectTableFallback(tableId => (
+        tablesDB.createRow<DashyProject>(DB_ID, tableId, ID.unique(), basePayload, permissions)
+      ));
       return storeProject(project);
     } catch (error) {
       console.error('Project Create Error:', error);
       showToast(getProjectAccessError(error) || 'Failed to create project', 'error');
       return null;
     }
-  }, [user, projects, showToast]);
+  }, [user, projects, showToast, withProjectTableFallback]);
 
   const deleteProject = useCallback(async (id: string) => {
     if (!user) return;
@@ -424,7 +450,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       })));
       
       // 2. Delete project from Appwrite
-      await tablesDB.deleteRow(DB_ID, TABLE_ID_PROJECTS, id);
+      await withProjectTableFallback(tableId => (
+        tablesDB.deleteRow(DB_ID, tableId, id)
+      ));
       
       setProjects((prev: DashyProject[]) => prev.filter(p => p.$id !== id));
       setPages((prev: DashyPage[]) => prev.filter(p => p.project_id !== id));
@@ -434,19 +462,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.error('Project Delete Error:', error);
       showToast(getProjectAccessError(error) || 'Failed to delete project', 'error');
     }
-  }, [user, pages, showToast]);
+  }, [user, pages, showToast, withProjectTableFallback]);
 
   const updateProject = useCallback(async (id: string, data: Partial<DashyProject>) => {
     setProjects(prev => prev.map(project => (
       project.$id === id ? { ...project, ...data } : project
     )));
     try {
-      await tablesDB.updateRow<DashyProject>(DB_ID, TABLE_ID_PROJECTS, id, data);
+      await withProjectTableFallback(tableId => (
+        tablesDB.updateRow<DashyProject>(DB_ID, tableId, id, data)
+      ));
     } catch (error) {
       console.error('Project Update Error:', error);
       showToast(getProjectAccessError(error) || 'Failed to update project', 'error');
     }
-  }, [showToast]);
+  }, [showToast, withProjectTableFallback]);
 
   const assignPageToProject = useCallback(async (pageId: string, projectId: string | null) => {
     setPages(prev => prev.map(p => p.$id === pageId ? { ...p, project_id: projectId ?? undefined } : p));
